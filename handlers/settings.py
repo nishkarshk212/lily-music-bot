@@ -109,10 +109,11 @@ async def settings_callback(client: Client, callback_query: CallbackQuery):
 
 # --- Category Sub-Panels ---
 
-async def playmode_panel(client: Client, callback_query: CallbackQuery):
+async def playmode_panel(client: Client, callback_query: CallbackQuery, settings: dict = None):
     """Sub-menu for Play Mode"""
     chat_id = callback_query.message.chat.id
-    settings = await db_manager.get_chat_settings(chat_id)
+    if settings is None:
+        settings = await db_manager.get_chat_settings(chat_id)
     
     current_type = settings.get("play_mode", "everyone")
     current_status = settings.get("play_status", "enable")
@@ -139,10 +140,11 @@ async def playmode_panel(client: Client, callback_query: CallbackQuery):
         pass
     await callback_query.answer("Play Mode Settings")
 
-async def skipmode_panel(client: Client, callback_query: CallbackQuery):
+async def skipmode_panel(client: Client, callback_query: CallbackQuery, settings: dict = None):
     """Sub-menu for Skip Mode"""
     chat_id = callback_query.message.chat.id
-    settings = await db_manager.get_chat_settings(chat_id)
+    if settings is None:
+        settings = await db_manager.get_chat_settings(chat_id)
     
     current_type = settings.get("skip_mode", "admins")
     current_status = settings.get("skip_status", "enable")
@@ -169,10 +171,11 @@ async def skipmode_panel(client: Client, callback_query: CallbackQuery):
         pass
     await callback_query.answer("Skip Mode Settings")
 
-async def stopmode_panel(client: Client, callback_query: CallbackQuery):
+async def stopmode_panel(client: Client, callback_query: CallbackQuery, settings: dict = None):
     """Sub-menu for Stop Mode"""
     chat_id = callback_query.message.chat.id
-    settings = await db_manager.get_chat_settings(chat_id)
+    if settings is None:
+        settings = await db_manager.get_chat_settings(chat_id)
     
     current_type = settings.get("stop_mode", "admins")
     current_status = settings.get("stop_status", "enable")
@@ -236,32 +239,38 @@ async def set_mode_callback(client: Client, callback_query: CallbackQuery):
         # 2. Play Mode Updates
         elif data.startswith("update_pm_"):
             mode = data.replace("update_pm_", "")
+            settings["play_mode"] = mode
             await db_manager.save_chat_settings(chat_id, {"play_mode": mode})
-            await playmode_panel(client, callback_query)
+            await playmode_panel(client, callback_query, settings=settings)
         elif data.startswith("update_ps_"):
             status = data.replace("update_ps_", "")
+            settings["play_status"] = status
             await db_manager.save_chat_settings(chat_id, {"play_status": status})
-            await playmode_panel(client, callback_query)
+            await playmode_panel(client, callback_query, settings=settings)
             
         # 3. Skip Mode Updates
         elif data.startswith("update_sm_"):
             mode = data.replace("update_sm_", "")
+            settings["skip_mode"] = mode
             await db_manager.save_chat_settings(chat_id, {"skip_mode": mode})
-            await skipmode_panel(client, callback_query)
+            await skipmode_panel(client, callback_query, settings=settings)
         elif data.startswith("update_ss_"):
             status = data.replace("update_ss_", "")
+            settings["skip_status"] = status
             await db_manager.save_chat_settings(chat_id, {"skip_status": status})
-            await skipmode_panel(client, callback_query)
+            await skipmode_panel(client, callback_query, settings=settings)
             
         # 4. Stop Mode Updates
         elif data.startswith("update_st_admins") or data.startswith("update_st_everyone"):
             mode = data.replace("update_st_", "")
+            settings["stop_mode"] = mode
             await db_manager.save_chat_settings(chat_id, {"stop_mode": mode})
-            await stopmode_panel(client, callback_query)
+            await stopmode_panel(client, callback_query, settings=settings)
         elif data.startswith("update_st_status_"):
             status = data.replace("update_st_status_", "")
+            settings["stop_status"] = status
             await db_manager.save_chat_settings(chat_id, {"stop_status": status})
-            await stopmode_panel(client, callback_query)
+            await stopmode_panel(client, callback_query, settings=settings)
         
     except Exception as e:
         await callback_query.answer(f"Update failed: {e}", show_alert=True)
