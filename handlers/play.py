@@ -272,6 +272,8 @@ async def play_command(client: Client, message: Message):
                 
                 # Check for specific admin required error
                 error_msg = str(play_error)
+                error_sent = False
+                
                 try:
                     if "CHAT_ADMIN_REQUIRED" in error_msg:
                         error_response = (
@@ -282,24 +284,30 @@ async def play_command(client: Client, message: Message):
                         error_response = (
                             "❌ **ᴄʜᴧηηєʟ ɪηᴠᴧʟɪᴅ**\n\n"
                             "ᴛʜє ʙσᴛ ᴅσєꜱ ησᴛ ʜᴧᴠє ᴧᴄᴄєꜱꜱ ᴛσ ᴛʜɪꜱ ᴄʜᴧηηєʟ/ɢʀσᴜᴘ.\n"
-                            "ᴘʟєᴧꜱє ᴧᴅᴅ ᴛʜє ʙσᴛ ᴧηᴅ ϻᴧᴋє ɪᴛ **ᴧᴅϻɪη** ᴡɪᴛʜ ᴠσɪᴄє ᴄʜᴧᴛ ᴘєʀϻɪꜱꜱɪσηꜱ."
+                            "ᴘʟєᴧꜱє ᴧᴅᴅ ᴛʜє ʙσᴛ ᴀηᴅ ᴧꜱꜱɪꜱᴛᴀηᴛ, ᴛʜєη ϻᴀᴋє ᴛʜєϻ **ᴀᴅϻɪη** ᴡɪᴛʜ ᴠσɪᴄє ᴄʜᴀᴛ ᴘєʀϻɪꜱꜱɪσηꜱ."
                         )
                     else:
-                        error_response = f"❌ ꜰᴧɪʟєᴅ ᴛσ ᴘʟᴧʏ: {error_msg[:200]}"
+                        error_response = f"❌ ꜰᴀɪʟєᴅ ᴛσ ᴘʟᴀʏ: {error_msg[:200]}"
                     
                     # Only edit status_msg if it exists and is valid
                     if status_msg:
                         await status_msg.edit_text(error_response)
+                        error_sent = True
                     else:
                         await message.reply_text(error_response)
+                        error_sent = True
                 except Exception as edit_error:
                     # If editing fails, send a new message
                     logger.error(f"Failed to edit status message: {edit_error}")
                     try:
-                        await message.reply_text("❌ ꜰᴧɪʟєᴅ ᴛσ ᴘʟᴧʏ ᴛʜє ꜱσηɢ. ᴘʟєᴧꜱє ᴛʀʏ ᴧɢᴧɪη.")
+                        await message.reply_text(error_response if 'error_response' in locals() else "❌ ꜰᴀɪʟєᴅ ᴛσ ᴘʟᴀʏ ᴛʜє ꜱσηɢ. ᴘʟєᴀꜱє ᴛʀʏ ᴀɢᴀɪη.")
+                        error_sent = True
                     except:
                         pass
-                raise
+                
+                # Don't raise expected errors (CHANNEL_INVALID, ADMIN_REQUIRED) to prevent log spam
+                if "CHANNEL_INVALID" not in error_msg and "CHAT_ADMIN_REQUIRED" not in error_msg:
+                    raise
         
         logger.info(f"Play command executed by {message.from_user.id} in {chat_id}")
         

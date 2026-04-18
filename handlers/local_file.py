@@ -280,17 +280,20 @@ async def play_local_file(client: Client, message: Message):
                 try:
                     if "CHANNEL_INVALID" in error_msg or "ChannelInvalid" in error_msg:
                         error_response = (
-                            "❌ **ᴄʜᴧηηєʟ ɪηᴠᴧʟɪᴅ**\n\n"
-                            "ᴛʜє ʙσᴛ ᴅσєꜱ ησᴛ ʜᴧᴠє ᴧᴄᴄєꜱꜱ ᴛσ ᴛʜɪꜱ ᴄʜᴧηηєʟ/ɢʀσᴜᴘ.\n"
-                            "ᴘʟєᴧꜱє ᴧᴅᴅ ᴛʜє ʙσᴛ ᴧηᴅ ϻᴧᴋє ɪᴛ **ᴧᴅϻɪη** ᴡɪᴛʜ ᴠσɪᴄє ᴄʜᴧᴛ ᴘєʀϻɪꜱꜱɪσηꜱ."
+                            "❌ **ᴄʜᴀηηєʟ ɪηᴠᴀʟɪᴅ**\n\n"
+                            "ᴛʜє ʙσᴛ ᴅσєꜱ ησᴛ ʜᴀᴠє ᴀᴄᴄєꜱꜱ ᴛσ ᴛʜɪꜱ ᴄʜᴀηηєʟ/ɢʀσᴜᴘ.\n"
+                            "ᴘʟєᴀꜱє ᴀᴅᴅ ᴛʜє ʙσᴛ ᴀηᴅ ᴀꜱꜱɪꜱᴛᴀηᴛ, ᴛʜєη ϻᴀᴋє ᴛʜєϻ **ᴀᴅϻɪη** ᴡɪᴛʜ ᴠσɪᴄє ᴄʜᴀᴛ ᴘєʀϻɪꜱꜱɪσηꜱ."
                         )
                     else:
-                        error_response = f"❌ ꜰᴧɪʟєᴅ ᴛσ ᴘʟᴧʏ: {error_msg[:200]}"
+                        error_response = f"❌ ꜰᴀɪʟєᴅ ᴛσ ᴘʟᴀʏ: {error_msg[:200]}"
                     
                     await status_msg.edit_text(error_response)
                 except:
-                    await message.reply_text("❌ ꜰᴧɪʟєᴅ ᴛσ ᴘʟᴧʏ ᴛʜє ꜰɪʟє. ᴘʟєᴧꜱє ᴛʀʏ ᴧɢᴧɪη.")
-                raise
+                    await message.reply_text(error_response if 'error_response' in locals() else "❌ ꜰᴀɪʟєᴅ ᴛσ ᴘʟᴀʏ ᴛʜє ꜰɪʟє. ᴘʟєᴀꜱє ᴛʀʏ ᴀɢᴀɪη.")
+                
+                # Don't raise expected errors to prevent log spam
+                if "CHANNEL_INVALID" not in error_msg and "CHAT_ADMIN_REQUIRED" not in error_msg:
+                    raise
         
         logger.info(f"Local file played by {message.from_user.id} in {chat_id}")
         
