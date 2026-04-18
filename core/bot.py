@@ -176,9 +176,13 @@ class BotApp:
         from handlers.settings_command import settings_command
         from handlers.new_group import new_group_handler
         from handlers.maintenance import clean_command, restart_command
+        from handlers.local_file import get_local_file_handler
         
         # New group handler
         self.app.add_handler(MessageHandler(new_group_handler, filters.new_chat_members))
+        
+        # Local file handler (for playing Telegram audio/video files)
+        self.app.add_handler(get_local_file_handler())
         
         # Maintenance commands
         self.app.add_handler(MessageHandler(clean_command, command("clean")))
