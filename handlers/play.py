@@ -227,7 +227,13 @@ async def play_command(client: Client, message: Message):
             )
             
             if status_msg:
-                await status_msg.edit_text(msg_text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
+                try:
+                    await status_msg.edit_text(msg_text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
+                except Exception as e:
+                    # Ignore MESSAGE_NOT_MODIFIED error (message already has same content)
+                    if "MESSAGE_NOT_MODIFIED" not in str(e):
+                        logger.error(f"Failed to edit status message: {e}")
+                        await message.reply_text(msg_text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
             else:
                 await message.reply_text(msg_text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
         else:
