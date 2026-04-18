@@ -3,8 +3,9 @@ Local File Play Handler
 Handles playing local audio/video files from Telegram messages
 """
 
-from pyrogram import Client
+from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.handlers import MessageHandler
 from pyrogram.enums import ChatAction, ParseMode
 from core.queue import queue_manager, Song
 from core.call_manager import call_manager
