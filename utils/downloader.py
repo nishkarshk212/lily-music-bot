@@ -79,11 +79,12 @@ class Downloader:
                 'skip_download': True,
                 'nocheckcertificate': True,
                 'ignoreerrors': True,
-                'socket_timeout': 5,
+                'socket_timeout': 3,  # Reduced timeout
             }
             
             loop = asyncio.get_event_loop()
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                # Use a smaller thread pool or direct executor for faster response
                 info = await loop.run_in_executor(None, lambda: ydl.extract_info(url, download=False))
             
             if not info:
@@ -181,9 +182,9 @@ class Downloader:
     async def search_and_download(self, query: str) -> Optional[SongInfo]:
         """Search for a song and download it using yt-dlp search + NexGen API download"""
         try:
-            # Check cache first
+            # ⚡ Check cache first (aggressive caching for faster playback)
             if query in self._search_cache:
-                logger.info(f"🔍 [CACHE] Using cached result for: {query}")
+                logger.info(f"⚡ [CACHE HIT] Using cached result for: {query}")
                 return self._search_cache[query]
 
             # Search on YouTube using yt-dlp - ULTRA FAST options
@@ -196,7 +197,8 @@ class Downloader:
                 'skip_download': True,
                 'playlist_items': '1',
                 'nocheckcertificate': True,
-                'socket_timeout': 5,
+                'socket_timeout': 2, # ⚡ Reduced timeout for faster response
+                'retries': 1,  # ⚡ Only 1 retry
             }
             
             loop = asyncio.get_event_loop()
@@ -224,19 +226,23 @@ class Downloader:
             song_info.video_id = video_id
             song_info.url = video_url
             
-            # Use direct stream for fastest possible playback
-            # Get the stream link from NexGen API
-            session = await self._get_session()
+            # ⚡ Use direct stream for fastest possible playback
             api_url = f"{NEXGEN_API_URL}/song/{video_id}"
             params = {"api": API_KEY} if API_KEY else {}
             
-            async with session.get(api_url, params=params, timeout=aiohttp.ClientTimeout(total=30)) as response:
+            try:
+                session = await self._get_session()
+                # ⚡ Reduced timeout to 3 seconds for faster response
+                async with session.get(api_url, params=params, timeout=aiohttp.ClientTimeout(total=3)) as response:
                     if response.status == 200:
                         data = await response.json()
                         if data and data.get("status") == "done" and data.get("link"):
                             song_info.file_path = data.get("link")
                             self._search_cache[query] = song_info
+                            logger.info(f"⚡ Got stream link for: {query}")
                             return song_info
+            except Exception as e:
+                logger.warning(f"NexGen fast-link fetch failed: {e}")
             
             # Fallback to standard download if stream link not immediately available
             file_path = await self.download_song(video_url, song_info)

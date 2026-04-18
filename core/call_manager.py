@@ -73,38 +73,32 @@ class CallManager:
             from core.userbot import assistant_manager
             from pytgcalls.exceptions import PyTgCallsAlreadyRunning
             
-            logger.info(f"Joining voice chat in {chat_id}...")
+            logger.info(f"⚡ Joining voice chat in {chat_id}...")
             
-            # Check if assistant is already in chat before joining
+            # ⚡ FAST SKIP: Check if already active and playing
+            if self.active_chats.get(chat_id, False):
+                logger.info(f"✅ Voice chat already active for {chat_id}")
+                return True
+            
+            # ⚡ OPTIMIZED: Check membership with reduced cache time (5 min instead of 1 hour)
             assistant_already_present = await assistant_manager.is_assistant_in_chat(chat_id)
-            logger.info(f"Assistant already present: {assistant_already_present}")
             
-            # Ensure assistant is in the chat before joining
-            await assistant_manager.ensure_assistant_in_chat(chat_id, chat_username)
+            # ⚡ FAST: Ensure assistant is in the chat (non-blocking if already present)
+            if not assistant_already_present:
+                await assistant_manager.ensure_assistant_in_chat(chat_id, chat_username)
             
             call = self.get_call(chat_id)
-            logger.info(f"active_chats status for {chat_id}: {self.active_chats.get(chat_id, False)}")
             
-            if not self.active_chats.get(chat_id, False):
-                # For channels (IDs starting with -100), ensure user client is used
-                if str(chat_id).startswith('-100'):
-                    if not self.user_client and not assistant_manager.assistants:
-                        raise RuntimeError("User account session is required to play in channels. Please set SESSION_STRING in .env")
-                    logger.info(f"Channel detected ({chat_id}), using user account for voice chat")
-                
-                try:
-                    logger.info(f"Starting PyTgCalls for {chat_id}...")
-                    await call.start()
-                    self.active_chats[chat_id] = True
-                    logger.info(f"✅ PyTgCalls started for {chat_id} (will join voice chat when playing)")
-                except PyTgCallsAlreadyRunning:
-                    # Client is already running, just mark as active
-                    logger.info(f"PyTgCalls already running for {chat_id}, marking as active")
-                    self.active_chats[chat_id] = True
-            else:
-                logger.info(f"PyTgCalls already active for {chat_id}")
+            # ⚡ Start PyTgCalls immediately
+            try:
+                logger.info(f"⚡ Starting PyTgCalls for {chat_id}...")
+                await call.start()
+                self.active_chats[chat_id] = True
+                logger.info(f"✅ PyTgCalls started for {chat_id}")
+            except PyTgCallsAlreadyRunning:
+                logger.info(f"PyTgCalls already running for {chat_id}")
+                self.active_chats[chat_id] = True
             
-            # Return whether assistant was already present
             return assistant_already_present
         except Exception as e:
             logger.error(f"Failed to join voice chat in {chat_id}: {e}")
@@ -167,33 +161,21 @@ class CallManager:
             else:
                 logger.info(f"Playing from URL: {song.file_path}")
             
-            # Small delay to ensure file is fully written (prevents audio breaking)
-            # Reduced for ultra-fast playback
-            if not is_url:
-                if not os.path.exists(song.file_path):
-                     await asyncio.sleep(0.1) # Reduced from 0.3s
-                else:
-                     pass # Removed 0.1s delay if file already exists
+            # ⚡ REMOVED delay - file should be ready from API stream
+            # No sleep needed for URL streams
             
-            # Create media stream - HIGH quality is often more stable for voice chats than STUDIO
+            # Create media stream - HIGH quality for stability
             stream = MediaStream(
                 song.file_path,
                 audio_parameters=AudioQuality.HIGH
             )
             
-            logger.info(f"Stream created for {chat_id}, calling play()...")
-            logger.info(f"Stream details: file={song.file_path}, audio_quality=HIGH")
+            logger.info(f"⚡ Stream created for {chat_id}, calling play()...")
             
-            # PyTgCalls v2: play() will automatically join the voice chat if not already in one
+            # ⚡ PyTgCalls v2: play() will automatically join the voice chat if not already in one
             await call.play(chat_id, stream)
             
-            # Send playing message if this was an automatic play (not from play_command)
-            # We check if it's the current song in queue
-            # Actually, play_command handles its own send_playing_message for the first song
-            # But for auto-playing next song, we need to send it here or in handle_stream_ended
-            
-            logger.info(f"✅ play() successful for {chat_id} - assistant should now be in voice chat")
-            logger.info(f"PyTgCalls active: {call}, Chat active: {self.active_chats.get(chat_id, False)}")
+            logger.info(f"✅ play() successful for {chat_id}")
             
             # Set volume
             await self.set_volume(chat_id, queue.volume)

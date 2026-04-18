@@ -110,11 +110,11 @@ class AssistantManager:
         if not self.assistants:
             return False
         
-        # Check cache first (valid for 1 hour)
+        # ⚡ Check cache first (valid for 5 minutes instead of 1 hour for faster updates)
         import time
         if chat_id in self._membership_cache:
             is_member, timestamp = self._membership_cache[chat_id]
-            if time.time() - timestamp < 3600:
+            if time.time() - timestamp < 300:  # 5 minutes
                 return is_member
 
         for assistant in self.assistants:
