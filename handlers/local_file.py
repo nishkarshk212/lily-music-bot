@@ -19,6 +19,7 @@ import random
 import asyncio
 import logging
 import hashlib
+import re
 
 logger = logging.getLogger(__name__)
 
