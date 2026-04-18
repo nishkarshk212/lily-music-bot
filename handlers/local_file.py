@@ -317,18 +317,26 @@ async def play_local_file(client: Client, message: Message):
 
 # Register the handler
 def get_local_file_handler():
-    """Return handler for local files"""
+    """Return handler for local files with /fplay command"""
     from pyrogram import filters
+    from pyrogram.filters import command
+    
+    # Supported file extensions
+    supported_extensions = (
+        # Audio formats
+        r'.*\.(mp3|mp4|wav|ogg|m4a|flac|mkv|avi|mov|wma|aac|opus|webm|3gp|amr)$'
+    )
     
     # Handle audio, voice, video, and document (audio/video) files
     local_file_filter = (
         filters.audio | 
         filters.voice | 
         filters.video | 
-        (filters.document & filters.regex(r'.*\.(mp3|mp4|wav|ogg|m4a|flac|mkv|avi|mov)$', re.IGNORECASE))
+        (filters.document & filters.regex(supported_extensions, re.IGNORECASE))
     )
     
+    # Return handler for /fplay command (must reply to file)
     return MessageHandler(
         play_local_file,
-        local_file_filter & filters.reply
+        command("fplay") & local_file_filter
     )
