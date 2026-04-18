@@ -101,8 +101,16 @@ class CallManager:
             
             return assistant_already_present
         except Exception as e:
-            logger.error(f"Failed to join voice chat in {chat_id}: {e}")
+            error_str = str(e)
+            logger.error(f"Failed to join voice chat in {chat_id}: {error_str}")
             logger.exception("Full traceback:")
+            
+            # Provide better error messages for common issues
+            if "CHANNEL_INVALID" in error_str or "ChannelInvalid" in error_str:
+                raise ValueError(
+                    f"Bot does not have access to this chat/channel (ID: {chat_id}). "
+                    f"Please ensure the bot and assistant are added as admins with voice chat permissions."
+                ) from e
             raise
     
     async def leave_voice_chat(self, chat_id: int):
@@ -186,8 +194,13 @@ class CallManager:
             logger.info(f"✅ Playing '{song.title}' in {chat_id}")
             
         except Exception as e:
-            logger.error(f"Failed to play song in {chat_id}: {e}")
+            error_str = str(e)
+            logger.error(f"Failed to play song in {chat_id}: {error_str}")
             logger.exception("Full traceback:")
+            
+            # Re-raise with better context for CHANNEL_INVALID
+            if "CHANNEL_INVALID" in error_str or "ChannelInvalid" in error_str:
+                raise ValueError(f"Bot does not have access to this chat (ID: {chat_id}). Please add the bot as admin.") from e
             raise
     
     async def pause(self, chat_id: int):

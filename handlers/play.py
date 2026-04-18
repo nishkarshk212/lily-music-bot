@@ -189,7 +189,10 @@ async def play_command(client: Client, message: Message):
         
         # Check queue size
         if queue.size() >= MAX_QUEUE_SIZE:
-            await status_msg.edit_text(ERROR_QUEUE_FULL.format(max_size=MAX_QUEUE_SIZE))
+            if status_msg:
+                await status_msg.edit_text(ERROR_QUEUE_FULL.format(max_size=MAX_QUEUE_SIZE))
+            else:
+                await message.reply_text(ERROR_QUEUE_FULL.format(max_size=MAX_QUEUE_SIZE))
             return
         
         # Create Song object
@@ -269,13 +272,33 @@ async def play_command(client: Client, message: Message):
                 
                 # Check for specific admin required error
                 error_msg = str(play_error)
-                if "CHAT_ADMIN_REQUIRED" in error_msg:
-                    await status_msg.edit_text(
-                        "❌ **ᴛєʟєɢʀᴧϻ ꜱᴧʏꜱ: [400 CHAT_ADMIN_REQUIRED]**\n\n"
-                        "ᴛʜє ᴧꜱꜱɪꜱᴛᴧηᴛ ηєєᴅꜱ ᴛσ ʙє ᴧη **ᴧᴅϻɪη** ᴡɪᴛʜ ᴘєʀϻɪꜱꜱɪση ᴛσ **ϻᴧηᴧɢє ᴠσɪᴄє ᴄʜᴧᴛꜱ** ᴛσ ꜱᴛᴧʀᴛ ᴛʜє ꜱᴛʀєᴧϻ!"
-                    )
-                else:
-                    await status_msg.edit_text(f"❌ Failed to play: {error_msg}")
+                try:
+                    if "CHAT_ADMIN_REQUIRED" in error_msg:
+                        error_response = (
+                            "❌ **ᴛєʟєɢʀᴧϻ ꜱᴧʏꜱ: [400 CHAT_ADMIN_REQUIRED]**\n\n"
+                            "ᴛʜє ᴧꜱꜱɪꜱᴛᴧηᴛ ηєєᴅꜱ ᴛσ ʙє ᴧη **ᴧᴅϻɪη** ᴡɪᴛʜ ᴘєʀϻɪꜱꜱɪση ᴛσ **ϻᴧηᴧɢє ᴠσɪᴄє ᴄʜᴧᴛꜱ** ᴛσ ꜱᴛᴧʀᴛ ᴛʜє ꜱᴛʀєᴧϻ!"
+                        )
+                    elif "CHANNEL_INVALID" in error_msg or "ChannelInvalid" in error_msg:
+                        error_response = (
+                            "❌ **ᴄʜᴧηηєʟ ɪηᴠᴧʟɪᴅ**\n\n"
+                            "ᴛʜє ʙσᴛ ᴅσєꜱ ησᴛ ʜᴧᴠє ᴧᴄᴄєꜱꜱ ᴛσ ᴛʜɪꜱ ᴄʜᴧηηєʟ/ɢʀσᴜᴘ.\n"
+                            "ᴘʟєᴧꜱє ᴧᴅᴅ ᴛʜє ʙσᴛ ᴧηᴅ ϻᴧᴋє ɪᴛ **ᴧᴅϻɪη** ᴡɪᴛʜ ᴠσɪᴄє ᴄʜᴧᴛ ᴘєʀϻɪꜱꜱɪσηꜱ."
+                        )
+                    else:
+                        error_response = f"❌ ꜰᴧɪʟєᴅ ᴛσ ᴘʟᴧʏ: {error_msg[:200]}"
+                    
+                    # Only edit status_msg if it exists and is valid
+                    if status_msg:
+                        await status_msg.edit_text(error_response)
+                    else:
+                        await message.reply_text(error_response)
+                except Exception as edit_error:
+                    # If editing fails, send a new message
+                    logger.error(f"Failed to edit status message: {edit_error}")
+                    try:
+                        await message.reply_text("❌ ꜰᴧɪʟєᴅ ᴛσ ᴘʟᴧʏ ᴛʜє ꜱσηɢ. ᴘʟєᴧꜱє ᴛʀʏ ᴧɢᴧɪη.")
+                    except:
+                        pass
                 raise
         
         logger.info(f"Play command executed by {message.from_user.id} in {chat_id}")
