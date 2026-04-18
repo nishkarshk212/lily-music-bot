@@ -8,6 +8,7 @@ import random
 from pyrogram import Client, filters
 from pyrogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto, Message
 from pyrogram.enums import ChatMemberStatus, ChatType
+from pyrogram.errors import MessageNotModified
 from database.mongodb import db_manager
 from config import OWNER_ID, SUDOERS
 
@@ -94,10 +95,13 @@ async def settings_callback(client: Client, callback_query: CallbackQuery):
 """
         selected_image = random.choice(SETTINGS_IMAGES)
         
-        await callback_query.message.edit_media(
-            media=InputMediaPhoto(media=selected_image, caption=settings_text),
-            reply_markup=markup
-        )
+        try:
+            await callback_query.message.edit_media(
+                media=InputMediaPhoto(media=selected_image, caption=settings_text),
+                reply_markup=markup
+            )
+        except MessageNotModified:
+            pass
         await callback_query.answer("Settings Menu")
         
     except Exception as e:
@@ -126,10 +130,13 @@ async def playmode_panel(client: Client, callback_query: CallbackQuery):
         ],
         [InlineKeyboardButton("⊶ ʙᴧᴄᴋ ⊶", callback_data="settings_main")]
     ]
-    await callback_query.message.edit_caption(
-        caption="🎵 **ᴘʟᴀʏ ᴍᴏᴅᴇ sᴇᴛᴛɪɴɢs**\n\nConfigure who can play music and toggle feature status.",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    try:
+        await callback_query.message.edit_caption(
+            caption="🎵 **ᴘʟᴀʏ ᴍᴏᴅᴇ sᴇᴛᴛɪɴɢs**\n\nConfigure who can play music and toggle feature status.",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    except MessageNotModified:
+        pass
     await callback_query.answer("Play Mode Settings")
 
 async def skipmode_panel(client: Client, callback_query: CallbackQuery):
@@ -153,10 +160,13 @@ async def skipmode_panel(client: Client, callback_query: CallbackQuery):
         ],
         [InlineKeyboardButton("⊶ ʙᴧᴄᴋ ⊶", callback_data="settings_main")]
     ]
-    await callback_query.message.edit_caption(
-        caption="⏭️ **sᴋɪᴘ ᴍᴏᴅᴇ sᴇᴛᴛɪɴɢs**\n\nConfigure who can skip music and toggle feature status.",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    try:
+        await callback_query.message.edit_caption(
+            caption="⏭️ **sᴋɪᴘ ᴍᴏᴅᴇ sᴇᴛᴛɪɴɢs**\n\nConfigure who can skip music and toggle feature status.",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    except MessageNotModified:
+        pass
     await callback_query.answer("Skip Mode Settings")
 
 async def stopmode_panel(client: Client, callback_query: CallbackQuery):
@@ -180,10 +190,13 @@ async def stopmode_panel(client: Client, callback_query: CallbackQuery):
         ],
         [InlineKeyboardButton("⊶ ʙᴧᴄᴋ ⊶", callback_data="settings_main")]
     ]
-    await callback_query.message.edit_caption(
-        caption="⏹️ **sᴛᴏᴘ ᴍᴏᴅᴇ sᴇᴛᴛɪɴɢs**\n\nConfigure who can stop the stream and toggle feature status.",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    try:
+        await callback_query.message.edit_caption(
+            caption="⏹️ **sᴛᴏᴘ ᴍᴏᴅᴇ sᴇᴛᴛɪɴɢs**\n\nConfigure who can stop the stream and toggle feature status.",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    except MessageNotModified:
+        pass
     await callback_query.answer("Stop Mode Settings")
 
 # --- Update Handlers ---
@@ -204,14 +217,20 @@ async def set_mode_callback(client: Client, callback_query: CallbackQuery):
             new_mode = "disable" if settings.get("clean_mode", "enable") == "enable" else "enable"
             await db_manager.save_chat_settings(chat_id, {"clean_mode": new_mode})
             markup = await get_settings_markup(chat_id)
-            await callback_query.message.edit_reply_markup(reply_markup=markup)
+            try:
+                await callback_query.message.edit_reply_markup(reply_markup=markup)
+            except MessageNotModified:
+                pass
             await callback_query.answer(f"✅ Clean mode: {new_mode}d")
             
         elif data == "toggle_logging":
             new_mode = "disable" if settings.get("logging", "enable") == "enable" else "enable"
             await db_manager.save_chat_settings(chat_id, {"logging": new_mode})
             markup = await get_settings_markup(chat_id)
-            await callback_query.message.edit_reply_markup(reply_markup=markup)
+            try:
+                await callback_query.message.edit_reply_markup(reply_markup=markup)
+            except MessageNotModified:
+                pass
             await callback_query.answer(f"✅ Logging: {new_mode}d")
             
         # 2. Play Mode Updates
@@ -266,10 +285,13 @@ async def quality_callback(client: Client, callback_query: CallbackQuery):
         ],
         [InlineKeyboardButton("⊶ ʙᴧᴄᴋ ⊶", callback_data="settings_main")]
     ]
-    await callback_query.message.edit_caption(
-        caption="📡 **ꜱєʟєᴄᴛ ᴧᴜᴅɪσ ǫᴜᴧʟɪᴛʏ:**",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    try:
+        await callback_query.message.edit_caption(
+            caption="📡 **ꜱєʟєᴄᴛ ᴧᴜᴅɪσ ǫᴜᴧʟɪᴛʏ:**",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    except MessageNotModified:
+        pass
     await callback_query.answer("Quality Settings")
 
 async def volume_callback(client: Client, callback_query: CallbackQuery):
@@ -289,10 +311,13 @@ async def volume_callback(client: Client, callback_query: CallbackQuery):
         ],
         [InlineKeyboardButton("⊶ ʙᴧᴄᴋ ⊶", callback_data="settings_main")]
     ]
-    await callback_query.message.edit_caption(
-        caption="🔊 **ꜱєʟєᴄᴛ ᴅєꜰᴧᴜʟᴛ ᴠσʟᴜϻє:**",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    try:
+        await callback_query.message.edit_caption(
+            caption="🔊 **ꜱєʟєᴄᴛ ᴅєꜰᴧᴜʟᴛ ᴠσʟᴜϻє:**",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    except MessageNotModified:
+        pass
     await callback_query.answer("Volume Settings")
 
 async def videomode_callback(client: Client, callback_query: CallbackQuery):
@@ -312,10 +337,13 @@ async def videomode_callback(client: Client, callback_query: CallbackQuery):
         ],
         [InlineKeyboardButton("⊶ ʙᴧᴄᴋ ⊶", callback_data="settings_main")]
     ]
-    await callback_query.message.edit_caption(
-        caption="📹 **ꜱєʟєᴄᴛ ᴠɪᴅєσ ǫᴜᴧʟɪᴛʏ:**",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    try:
+        await callback_query.message.edit_caption(
+            caption="📹 **ꜱєʟєᴄᴛ ᴠɪᴅєσ ǫᴜᴧʟɪᴛʏ:**",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    except MessageNotModified:
+        pass
     await callback_query.answer("Video Mode Settings")
 
 async def update_sub_setting(client: Client, callback_query: CallbackQuery):
