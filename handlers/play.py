@@ -232,8 +232,8 @@ async def play_command(client: Client, message: Message):
                 except Exception as e:
                     # Ignore MESSAGE_NOT_MODIFIED error (message already has same content)
                     if "MESSAGE_NOT_MODIFIED" not in str(e):
-                        logger.error(f"Failed to edit status message: {e}")
-                        await message.reply_text(msg_text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
+                        logger.warning(f"Failed to edit status message: {e}")
+                        # Don't send duplicate - just log the warning
             else:
                 await message.reply_text(msg_text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
         else:
@@ -303,13 +303,11 @@ async def play_command(client: Client, message: Message):
                         await message.reply_text(error_response)
                         error_sent = True
                 except Exception as edit_error:
-                    # If editing fails, send a new message
-                    logger.error(f"Failed to edit status message: {edit_error}")
-                    try:
-                        await message.reply_text(error_response if 'error_response' in locals() else "❌ ꜰᴀɪʟєᴅ ᴛσ ᴘʟᴀʏ ᴛʜє ꜱσηɢ. ᴘʟєᴀꜱє ᴛʀʏ ᴀɢᴀɪη.")
-                        error_sent = True
-                    except:
-                        pass
+                    # If editing fails with a real error (not MESSAGE_NOT_MODIFIED)
+                    if "MESSAGE_NOT_MODIFIED" not in str(edit_error):
+                        logger.warning(f"Failed to edit status message: {edit_error}")
+                        # Don't send duplicate message - the edit likely succeeded or user already sees something
+                    # If it was MESSAGE_NOT_MODIFIED, that's fine - user already sees the message
                 
                 # Don't raise expected errors (CHANNEL_INVALID, ADMIN_REQUIRED) to prevent log spam
                 if "CHANNEL_INVALID" not in error_msg and "CHAT_ADMIN_REQUIRED" not in error_msg:
@@ -318,6 +316,11 @@ async def play_command(client: Client, message: Message):
         logger.info(f"Play command executed by {message.from_user.id} in {chat_id}")
         
     except Exception as e:
+        # Don't log/send error if it's an expected error that was already handled
+        error_str = str(e)
+        if "CHANNEL_INVALID" in error_str or "CHAT_ADMIN_REQUIRED" in error_str:
+            return  # Already handled above
+        
         logger.error(f"Play command error: {e}", exc_info=True)
         
         # Send error log to log group
