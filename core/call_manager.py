@@ -198,9 +198,12 @@ class CallManager:
             logger.error(f"Failed to play song in {chat_id}: {error_str}")
             logger.exception("Full traceback:")
             
-            # Re-raise with better context for CHANNEL_INVALID
+            # Re-raise with better context for specific errors
             if "CHANNEL_INVALID" in error_str or "ChannelInvalid" in error_str:
                 raise ValueError(f"Bot does not have access to this chat (ID: {chat_id}). Please add the bot as admin.") from e
+            # Don't raise FLOOD_WAIT - it's temporary and will be retried by user
+            if "FLOOD_WAIT" in error_str:
+                raise ValueError(f"Telegram rate limit reached. Please wait a few seconds and try again.") from e
             raise
     
     async def pause(self, chat_id: int):

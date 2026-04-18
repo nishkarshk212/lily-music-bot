@@ -292,6 +292,12 @@ async def play_command(client: Client, message: Message):
                             "ᴛʜє ʙσᴛ ᴅσєꜱ ησᴛ ʜᴧᴠє ᴧᴄᴄєꜱꜱ ᴛσ ᴛʜɪꜱ ᴄʜᴧηηєʟ/ɢʀσᴜᴘ.\n"
                             "ᴘʟєᴧꜱє ᴧᴅᴅ ᴛʜє ʙσᴛ ᴀηᴅ ᴧꜱꜱɪꜱᴛᴀηᴛ, ᴛʜєη ϻᴀᴋє ᴛʜєϻ **ᴀᴅϻɪη** ᴡɪᴛʜ ᴠσɪᴄє ᴄʜᴀᴛ ᴘєʀϻɪꜱꜱɪσηꜱ."
                         )
+                    elif "FLOOD_WAIT" in error_msg:
+                        error_response = (
+                            "⏳ **ᴛєʟєɢʀᴧϻ ʀᴧᴛє ʟɪϻɪᴛ**\n\n"
+                            "ᴘʟєᴧꜱє ᴡᴧɪᴛ ᴀ ꜰєᴡ ꜱєᴄσηᴅꜱ ᴀηᴅ ᴛʀʏ ᴀɢᴀɪη.\n"
+                            "ᴛʜɪꜱ ʜᴧᴘᴘєηꜱ ᴡʜєη ᴛσσ ϻᴧηʏ ᴄσϻϻᴧηᴅꜱ ᴧʀє ꜱєηᴛ ϙᴜɪᴄᴋʟʏ."
+                        )
                     else:
                         error_response = f"❌ ꜰᴀɪʟєᴅ ᴛσ ᴘʟᴀʏ: {error_msg[:200]}"
                     
@@ -309,8 +315,8 @@ async def play_command(client: Client, message: Message):
                         # Don't send duplicate message - the edit likely succeeded or user already sees something
                     # If it was MESSAGE_NOT_MODIFIED, that's fine - user already sees the message
                 
-                # Don't raise expected errors (CHANNEL_INVALID, ADMIN_REQUIRED) to prevent log spam
-                if "CHANNEL_INVALID" not in error_msg and "CHAT_ADMIN_REQUIRED" not in error_msg:
+                # Don't raise expected errors (CHANNEL_INVALID, ADMIN_REQUIRED, FLOOD_WAIT) to prevent log spam
+                if "CHANNEL_INVALID" not in error_msg and "CHAT_ADMIN_REQUIRED" not in error_msg and "FLOOD_WAIT" not in error_msg:
                     raise
         
         logger.info(f"Play command executed by {message.from_user.id} in {chat_id}")
@@ -318,7 +324,7 @@ async def play_command(client: Client, message: Message):
     except Exception as e:
         # Don't log/send error if it's an expected error that was already handled
         error_str = str(e)
-        if "CHANNEL_INVALID" in error_str or "CHAT_ADMIN_REQUIRED" in error_str:
+        if "CHANNEL_INVALID" in error_str or "CHAT_ADMIN_REQUIRED" in error_str or "FLOOD_WAIT" in error_str:
             return  # Already handled above
         
         logger.error(f"Play command error: {e}", exc_info=True)

@@ -284,6 +284,12 @@ async def play_local_file(client: Client, message: Message):
                             "ᴛʜє ʙσᴛ ᴅσєꜱ ησᴛ ʜᴀᴠє ᴀᴄᴄєꜱꜱ ᴛσ ᴛʜɪꜱ ᴄʜᴀηηєʟ/ɢʀσᴜᴘ.\n"
                             "ᴘʟєᴀꜱє ᴀᴅᴅ ᴛʜє ʙσᴛ ᴀηᴅ ᴀꜱꜱɪꜱᴛᴀηᴛ, ᴛʜєη ϻᴀᴋє ᴛʜєϻ **ᴀᴅϻɪη** ᴡɪᴛʜ ᴠσɪᴄє ᴄʜᴀᴛ ᴘєʀϻɪꜱꜱɪσηꜱ."
                         )
+                    elif "FLOOD_WAIT" in error_msg:
+                        error_response = (
+                            "⏳ **ᴛєʟєɢʀᴀᴍ ʀᴀᴛє ʟɪᴍɪᴛ**\n\n"
+                            "ᴘʟєᴀꜱє ᴡᴀɪᴛ ᴀ ꜰєᴡ ꜱєᴄᴏɴᴅꜱ ᴀɴᴅ ᴛʀʏ ᴀɢᴀɪɴ.\n"
+                            "ᴛʜɪꜱ ʜᴀᴘᴘєɴꜱ ᴡʜєɴ ᴛᴏᴏ ᴍᴀɴʏ ᴄᴏᴍᴍᴀɴᴅꜱ ᴀʀє ꜱєɴᴛ ϙᴜɪᴄᴋʟʏ."
+                        )
                     else:
                         error_response = f"❌ ꜰᴀɪʟєᴅ ᴛσ ᴘʟᴀʏ: {error_msg[:200]}"
                     
@@ -292,7 +298,7 @@ async def play_local_file(client: Client, message: Message):
                     await message.reply_text(error_response if 'error_response' in locals() else "❌ ꜰᴀɪʟєᴅ ᴛσ ᴘʟᴀʏ ᴛʜє ꜰɪʟє. ᴘʟєᴀꜱє ᴛʀʏ ᴀɢᴀɪη.")
                 
                 # Don't raise expected errors to prevent log spam
-                if "CHANNEL_INVALID" not in error_msg and "CHAT_ADMIN_REQUIRED" not in error_msg:
+                if "CHANNEL_INVALID" not in error_msg and "CHAT_ADMIN_REQUIRED" not in error_msg and "FLOOD_WAIT" not in error_msg:
                     raise
         
         logger.info(f"Local file played by {message.from_user.id} in {chat_id}")
