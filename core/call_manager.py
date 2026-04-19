@@ -218,7 +218,7 @@ class CallManager:
             stream = MediaStream(
                 song.file_path,
                 audio_parameters=AudioQuality.HIGH,
-                additional_ffmpeg_parameters='-reconnect 1 -reconnect_at_eof 1 -reconnect_streamed 1 -reconnect_delay_max 2'
+                ffmpeg_parameters='-reconnect 1 -reconnect_at_eof 1 -reconnect_streamed 1 -reconnect_delay_max 2'
             )
             
             logger.info(f"⚡ Stream created for {chat_id}, calling play()...")
@@ -409,7 +409,7 @@ class CallManager:
             stream = MediaStream(
                 queue.current_song.file_path,
                 audio_parameters=AudioQuality.HIGH,
-                additional_ffmpeg_parameters=f"-ss {seconds}"
+                ffmpeg_parameters=f"-ss {seconds}"
             )
             
             await call.play(chat_id, stream)
