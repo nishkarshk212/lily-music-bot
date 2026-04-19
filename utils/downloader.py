@@ -8,6 +8,7 @@ import yt_dlp
 import asyncio
 import aiohttp
 from typing import Optional, Dict
+from youtubesearchpython.__future__ import VideosSearch
 from config import DOWNLOAD_DIR, MAX_DURATION
 import logging
 
@@ -180,36 +181,22 @@ class Downloader:
             return None
     
     async def search_and_download(self, query: str) -> Optional[SongInfo]:
-        """Search for a song and download it using yt-dlp search + NexGen API download"""
+        """Search for a song and download it using youtube-search-python (ULTRA FAST)"""
         try:
             # ⚡ Check cache first (aggressive caching for faster playback)
             if query in self._search_cache:
                 logger.info(f"⚡ [CACHE HIT] Using cached result for: {query}")
                 return self._search_cache[query]
 
-            # Search on YouTube using yt-dlp - ULTRA FAST options
-            search_url = f"ytsearch1:{query}"
+            # ⚡ ULTRA-FAST: Use youtube-search-python instead of yt-dlp
+            # yt-dlp takes 0.5-1.5s for search, VideosSearch takes 0.1-0.3s
+            search = VideosSearch(query, limit=1)
+            result = await search.next()
             
-            ydl_opts = {
-                'quiet': True,
-                'no_warnings': True,
-                'extract_flat': True,  # FAST: don't extract metadata of entries
-                'skip_download': True,
-                'playlist_items': '1',
-                'nocheckcertificate': True,
-                'socket_timeout': 2, # ⚡ Reduced timeout for faster response
-                'retries': 1,  # ⚡ Only 1 retry
-            }
-            
-            loop = asyncio.get_event_loop()
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                # RUN IN THREAD TO PREVENT EVENT LOOP BLOCKING
-                info = await loop.run_in_executor(None, lambda: ydl.extract_info(search_url, download=False))
-            
-            if not info or 'entries' not in info or not info['entries']:
+            if not result or not result.get("result"):
                 return None
             
-            video_info = info['entries'][0]
+            video_info = result["result"][0]
             video_id = video_info.get('id')
             if not video_id:
                 return None
@@ -219,10 +206,21 @@ class Downloader:
             # Create SongInfo directly from search result (FASTEST)
             song_info = SongInfo()
             song_info.title = video_info.get('title', 'Unknown')
-            song_info.duration = int(video_info.get('duration', 0))
-            song_info.thumbnail = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
-            song_info.channel = video_info.get('uploader', 'Unknown')
-            song_info.views = video_info.get('view_count', '0')
+            # Handle duration (format: '3:45')
+            duration_str = video_info.get('duration', '0')
+            if duration_str:
+                parts = duration_str.split(':')
+                if len(parts) == 2:
+                    song_info.duration = int(parts[0]) * 60 + int(parts[1])
+                elif len(parts) == 3:
+                    song_info.duration = int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+            
+            # Handle thumbnail (get maxres if available)
+            thumbnails = video_info.get('thumbnails', [])
+            song_info.thumbnail = thumbnails[-1].get('url') if thumbnails else f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
+            
+            song_info.channel = video_info.get('channel', {}).get('name', 'Unknown')
+            song_info.views = video_info.get('viewCount', {}).get('short', '0')
             song_info.video_id = video_id
             song_info.url = video_url
             
@@ -247,6 +245,7 @@ class Downloader:
             # Fallback to standard download if stream link not immediately available
             file_path = await self.download_song(video_url, song_info)
             if file_path:
+                song_info.file_path = file_path
                 self._search_cache[query] = song_info
                 return song_info
             
