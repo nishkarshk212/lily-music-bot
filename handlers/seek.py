@@ -17,8 +17,15 @@ logger = logging.getLogger(__name__)
 async def seek_command(client: Client, message: Message):
     """Seek forward in the current stream"""
     try:
-        await message.reply_chat_action(ChatAction.TYPING)
+        chat_id = message.chat.id
+        from core.queue import queue_manager
+        queue = queue_manager.get_queue(chat_id)
         
+        # Check if playing
+        if not queue.current_song or not queue.is_playing:
+            await message.reply_text("❌ No song is currently playing!")
+            return
+            
         # Get duration to seek
         if len(message.command) < 2:
             await message.reply_text(
@@ -34,26 +41,27 @@ async def seek_command(client: Client, message: Message):
             await message.reply_text("❌ Invalid duration. Please provide a number.")
             return
         
-        # Check if playing
-        if not call_manager.current_call or not call_manager.current_call.is_playing:
-            await message.reply_text("❌ No song is currently playing!")
-            return
-        
-        # Seek forward
-        current_position = call_manager.current_call.position
+        # Estimate current position
+        import time
+        current_position = int(time.time() - queue.start_time)
         new_position = current_position + duration
         
+        # Check if new position is within bounds
+        if new_position >= queue.current_song.duration:
+            await message.reply_text("❌ Cannot seek beyond the end of the song!")
+            return
+        
         # Perform seek
-        success = await call_manager.current_call.seek(new_position)
+        success = await call_manager.seek(chat_id, new_position)
         
         if success:
             await message.reply_text(
-                f"✅ **Seeked forward!**\n\n"
-                f"⏱ Duration: {duration} seconds\n"
-                f"📍 New position: {new_position} seconds"
+                f"✅ **δєєᴋєᴅ ꜰσʀᴡᴧʀᴅ!**\n\n"
+                f"⏱ ᴅᴜʀᴧᴛɪση: {duration} ꜱєᴄσηᴅꜱ\n"
+                f"📍 ηєᴡ ᴘσꜱɪᴛɪση: {new_position} ꜱєᴄσηᴅꜱ"
             )
         else:
-            await message.reply_text("❌ Failed to seek. The duration may be beyond the track length.")
+            await message.reply_text("❌ Failed to seek.")
         
     except Exception as e:
         logger.error(f"Error in seek_command: {e}")
@@ -65,8 +73,15 @@ async def seek_command(client: Client, message: Message):
 async def seekback_command(client: Client, message: Message):
     """Seek backward in the current stream"""
     try:
-        await message.reply_chat_action(ChatAction.TYPING)
+        chat_id = message.chat.id
+        from core.queue import queue_manager
+        queue = queue_manager.get_queue(chat_id)
         
+        # Check if playing
+        if not queue.current_song or not queue.is_playing:
+            await message.reply_text("❌ No song is currently playing!")
+            return
+            
         # Get duration to seek back
         if len(message.command) < 2:
             await message.reply_text(
@@ -82,27 +97,23 @@ async def seekback_command(client: Client, message: Message):
             await message.reply_text("❌ Invalid duration. Please provide a number.")
             return
         
-        # Check if playing
-        if not call_manager.current_call or not call_manager.current_call.is_playing:
-            await message.reply_text("❌ No song is currently playing!")
-            return
-        
-        # Seek backward
-        current_position = call_manager.current_call.position
+        # Estimate current position
+        import time
+        current_position = int(time.time() - queue.start_time)
         new_position = max(0, current_position - duration)
         
         # Perform seek
-        success = await call_manager.current_call.seek(new_position)
+        success = await call_manager.seek(chat_id, new_position)
         
         if success:
             await message.reply_text(
-                f"✅ **Seeked backward!**\n\n"
-                f"⏱ Duration: {duration} seconds\n"
-                f"📍 New position: {new_position} seconds"
+                f"✅ **δєєᴋєᴅ ʙᴧᴄᴋᴡᴧʀᴅ!**\n\n"
+                f"⏱ ᴅᴜʀᴧᴛɪση: {duration} ꜱєᴄσηᴅꜱ\n"
+                f"📍 ηєᴡ ᴘσδɪᴛɪση: {new_position} ꜱєᴄσηᴅꜱ"
             )
         else:
             await message.reply_text("❌ Failed to seek.")
         
     except Exception as e:
         logger.error(f"Error in seekback_command: {e}")
-        await message.reply_text("❌ An error occurred while seeking backward.")
+        await message.reply_text("❌ An error occurred while seeking.")

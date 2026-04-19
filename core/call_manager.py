@@ -25,11 +25,14 @@ class CallManager:
         self.app = app
         self.user_session = user_session
         self.user_client = None
-        self.calls: Dict[int, PyTgCalls] = {}
+        self.calls: Dict[int, PyTgCalls] = {} # Map chat_id to PyTgCalls instance
+        self.assistant_calls: Dict[int, PyTgCalls] = {} # Map assistant_id to PyTgCalls instance
         self.active_chats: Dict[int, bool] = {}
+        self.chat_assistants: Dict[int, int] = {} # Map chat_id to assistant_id
         
     async def initialize_user_client(self):
-        """Initialize user account client for voice chats"""
+        """Initialize user account client and PyTgCalls instances for all assistants"""
+        # ... legacy support ...
         if self.user_session and not self.user_client:
             logger.info("Initializing user account for voice chats...")
             self.user_client = Client(
@@ -40,32 +43,69 @@ class CallManager:
             )
             await self.user_client.start()
             logger.info("✅ User account initialized for voice chats")
+
+        # Initialize PyTgCalls for all assistants and start them
+        from core.userbot import assistant_manager
+        for assistant in assistant_manager.assistants:
+            assistant_id = assistant.me.id
+            if assistant_id not in self.assistant_calls:
+                logger.info(f"Initializing PyTgCalls for assistant {assistant_id}")
+                call = PyTgCalls(assistant)
+                self.assistant_calls[assistant_id] = call
+                
+                # Start the call instance immediately
+                try:
+                    await call.start()
+                    logger.info(f"✅ Started PyTgCalls for assistant {assistant_id}")
+                except Exception as e:
+                    logger.error(f"❌ Failed to start PyTgCalls for assistant {assistant_id}: {e}")
+
+                # Register event handler for stream ended
+                @call.on_update()
+                async def stream_ended_handler(client: PyTgCalls, update: Update, assistant_id=assistant_id):
+                    # We need to find which chat_id this update belongs to
+                    # PyTgCalls update usually has chat_id
+                    if isinstance(update, StreamAudioEnded):
+                        await self.handle_stream_ended(update.chat_id, update)
     
     def get_call(self, chat_id: int) -> PyTgCalls:
-        """Get or create PyTgCalls instance for a chat"""
-        if chat_id not in self.calls:
-            # Try to use assistant manager first, fallback to user_client or app
-            from core.userbot import assistant_manager
+        """Get or create PyTgCalls instance for a chat (reusing assistant instances)"""
+        # If we already have an assistant assigned to this chat, use its call instance
+        if chat_id in self.chat_assistants:
+            assistant_id = self.chat_assistants[chat_id]
+            if assistant_id in self.assistant_calls:
+                return self.assistant_calls[assistant_id]
+
+        # Otherwise, pick an assistant and assign it to this chat
+        from core.userbot import assistant_manager
+        
+        client = None
+        if assistant_manager.assistants:
+            client = assistant_manager.get_next_assistant()
+            assistant_id = client.me.id
+            self.chat_assistants[chat_id] = assistant_id
             
-            client = None
-            if assistant_manager.assistants:
-                # Use the first available assistant
-                client = assistant_manager.get_next_assistant()
-                logger.info(f"Using assistant: {client.me.first_name} (ID: {client.me.id})")
+            # Ensure PyTgCalls is initialized for this assistant
+            if assistant_id not in self.assistant_calls:
+                logger.info(f"Initializing PyTgCalls for assistant {assistant_id}")
+                call = PyTgCalls(client)
+                self.assistant_calls[assistant_id] = call
+                # Note: We should ideally start it in initialize_user_client, 
+                # but if an assistant is added later, we start it here.
+                # However, start() is blocking, so we should be careful.
+                # We'll try to start it if not already running.
+                
+            return self.assistant_calls[assistant_id]
             
-            if not client:
-                client = self.user_client if self.user_client else self.app
-                logger.info(f"Using fallback client: {'user_client' if self.user_client else 'bot_app'}")
+        # Fallback to user_client or app
+        client = self.user_client if self.user_client else self.app
+        assistant_id = client.me.id if hasattr(client, 'me') else 0
+        self.chat_assistants[chat_id] = assistant_id
+        
+        if assistant_id not in self.assistant_calls:
+            self.assistant_calls[assistant_id] = PyTgCalls(client)
             
-            logger.info(f"Creating PyTgCalls instance for chat {chat_id}")
-            self.calls[chat_id] = PyTgCalls(client)
-            
-            # Register event handler for stream ended
-            @self.calls[chat_id].on_update()
-            async def stream_ended_handler(client: PyTgCalls, update: Update):
-                await self.handle_stream_ended(chat_id, update)
-            
-        return self.calls[chat_id]
+        return self.assistant_calls[assistant_id]
     
     async def join_voice_chat(self, chat_id: int, chat_username: str = None) -> bool:
         """Join voice chat in a group or channel. Returns True if assistant was invited, False if already present"""
@@ -190,6 +230,8 @@ class CallManager:
             
             # Mark as playing (song is already added to queue in play.py)
             queue.is_playing = True
+            import time
+            queue.start_time = time.time()
             
             logger.info(f"✅ Playing '{song.title}' in {chat_id}")
             
@@ -296,6 +338,37 @@ class CallManager:
         except Exception as e:
             logger.error(f"Failed to set volume in {chat_id}: {e}")
             raise
+    
+    async def seek(self, chat_id: int, seconds: int) -> bool:
+        """Seek to a specific position in the current stream"""
+        try:
+            call = self.get_call(chat_id)
+            queue = queue_manager.get_queue(chat_id)
+            
+            if not queue.current_song:
+                return False
+                
+            # PyTgCalls v2.x seek: play the same stream but with seek_offset
+            from pytgcalls.types import MediaStream
+            from pytgcalls.types import AudioQuality
+            
+            stream = MediaStream(
+                queue.current_song.file_path,
+                audio_parameters=AudioQuality.HIGH,
+                additional_ffmpeg_parameters=f"-ss {seconds}"
+            )
+            
+            await call.play(chat_id, stream)
+            
+            # Update start time for position estimation
+            import time
+            queue.start_time = time.time() - seconds
+            
+            logger.info(f"Seeked to {seconds}s in {chat_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to seek in {chat_id}: {e}")
+            return False
     
     async def mute(self, chat_id: int):
         """Mute playback"""

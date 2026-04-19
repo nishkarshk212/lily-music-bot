@@ -136,9 +136,13 @@ async def execute_broadcast(client: Client, message: Message, user_id: int):
         
         broadcast_targets = []
         for chat in all_chats:
-            broadcast_targets.append(chat.get('chat_id'))
+            chat_id = chat.get('chat_id')
+            if chat_id:
+                broadcast_targets.append(chat_id)
         for user in all_users:
-            broadcast_targets.append(user.get('user_id'))
+            user_id_target = user.get('user_id')
+            if user_id_target:
+                broadcast_targets.append(user_id_target)
             
         broadcast_targets = list(set(broadcast_targets)) # Unique targets
         
@@ -150,22 +154,24 @@ async def execute_broadcast(client: Client, message: Message, user_id: int):
         failed_count = 0
         
         status_msg = await message.edit_text(
-            f"📢 **ʙʀσᴧᴅᴄᴧꜱᴛɪηɢ...**\n\n"
-            f"ᴛσᴛᴧʟ ᴛᴧʀɢєᴛꜱ: {len(broadcast_targets)}\n"
+            f"📢 **ʙʀσᴧᴅᴄᴧδᴛɪηɢ...**\n\n"
+            f"ᴛσᴛᴧʟ ᴛᴧʀɢєᴛδ: {len(broadcast_targets)}\n"
             f"δєηᴛ: 0 | ꜰᴧɪʟєᴅ: 0"
         )
         
         for target_id in broadcast_targets:
             try:
                 if media:
+                    # media is the original Message object, copy it to target
                     await media.copy(target_id, caption=text, reply_markup=keyboard)
                 else:
+                    if not text:
+                        continue
                     await client.send_message(target_id, text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
                 
                 sent_count += 1
             except FloodWait as e:
                 await asyncio.sleep(e.value)
-                # Try again after sleep
                 try:
                     if media:
                         await media.copy(target_id, caption=text, reply_markup=keyboard)
@@ -180,12 +186,12 @@ async def execute_broadcast(client: Client, message: Message, user_id: int):
                 failed_count += 1
                 logger.debug(f"Failed to send to {target_id}: {e}")
             
-            # Update status every 20 messages
-            if (sent_count + failed_count) % 20 == 0:
+            # Update status every 10 messages (increased frequency for better UX)
+            if (sent_count + failed_count) % 10 == 0:
                 try:
                     await status_msg.edit_text(
-                        f"📢 **ʙʀσᴧᴅᴄᴧꜱᴛɪηɢ...**\n\n"
-                        f"ᴛσᴛᴧʟ ᴛᴧʀɢєᴛꜱ: {len(broadcast_targets)}\n"
+                        f"📢 **ʙʀσᴧᴅᴄᴧδᴛɪηɢ...**\n\n"
+                        f"ᴛσᴛᴧʟ ᴛᴧʀɢєᴛδ: {len(broadcast_targets)}\n"
                         f"δєηᴛ: {sent_count} | ꜰᴧɪʟєᴅ: {failed_count}"
                     )
                 except:
@@ -193,7 +199,7 @@ async def execute_broadcast(client: Client, message: Message, user_id: int):
         
         # Final status
         await status_msg.edit_text(
-            f"✅ **ʙʀσᴧᴅᴄᴧꜱᴛ ᴄσϻᴘʟєᴛє!**\n\n"
+            f"✅ **ʙʀσᴧᴅᴄᴧδᴛ ᴄσϻᴘʟєᴛє!**\n\n"
             f"📊 **δᴛᴧᴛɪδᴛɪᴄδ:**\n"
             f"├ ᴛσᴛᴧʟ: {len(broadcast_targets)}\n"
             f"├ δєηᴛ: {sent_count}\n"

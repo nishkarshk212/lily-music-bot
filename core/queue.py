@@ -34,6 +34,7 @@ class Queue:
         self.loop_queue = False
         self.volume = 100
         self.history: List[Song] = []  # Previously played songs
+        self.start_time = 0.0 # Unix timestamp when current song started
     
     def add_song(self, song: Song) -> int:
         """Add song to queue, returns position"""
