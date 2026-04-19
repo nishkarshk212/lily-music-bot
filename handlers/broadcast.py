@@ -90,7 +90,8 @@ async def broadcast_message_handler(client: Client, message: Message):
     state = broadcast_state[user_id]["state"]
     
     if state == "waiting_for_text":
-        broadcast_state[user_id]["text"] = message.text.html if message.text else message.caption.html if message.caption else None
+        # Fix: Use message.text directly, not .html attribute
+        broadcast_state[user_id]["text"] = message.text or message.caption or None
         broadcast_state[user_id]["state"] = None
         await message.reply_text("✅ **ᴛєxᴛ δєᴛ δᴜᴄᴄєꜱꜱꜰᴜʟʟʏ!**")
         await broadcast_command(client, message)
@@ -122,6 +123,8 @@ async def execute_broadcast(client: Client, message: Message, user_id: int):
         media = data["media"]
         buttons = data["buttons"]
         
+        logger.info(f"Starting broadcast from user {user_id}: text={bool(text)}, media={bool(media)}, buttons={len(buttons)}")
+        
         # Build keyboard
         keyboard = None
         if buttons:
@@ -132,7 +135,18 @@ async def execute_broadcast(client: Client, message: Message, user_id: int):
             
         # Get all chats and users
         all_chats = await db_manager.get_all_chats()
-        all_users = await db_manager.user_collection.find({}).to_list(length=None) if db_manager.user_collection else []
+        logger.info(f"Found {len(all_chats)} chats in database")
+        
+        # Fix: Properly query users collection
+        all_users = []
+        if hasattr(db_manager, 'user_collection') and db_manager.user_collection:
+            try:
+                all_users = await db_manager.user_collection.find({}).to_list(length=None)
+                logger.info(f"Found {len(all_users)} users in database")
+            except Exception as e:
+                logger.error(f"Failed to query users: {e}")
+        else:
+            logger.warning("User collection not available")
         
         broadcast_targets = []
         for chat in all_chats:
@@ -144,10 +158,14 @@ async def execute_broadcast(client: Client, message: Message, user_id: int):
             if user_id_target:
                 broadcast_targets.append(user_id_target)
             
-        broadcast_targets = list(set(broadcast_targets)) # Unique targets
+        # Remove duplicates and the broadcaster's own ID
+        broadcast_targets = list(set(broadcast_targets))
+        broadcast_targets = [tid for tid in broadcast_targets if tid != user_id]
+        
+        logger.info(f"Total broadcast targets: {len(broadcast_targets)}")
         
         if not broadcast_targets:
-            await message.edit_text("❌ No targets found to broadcast to.")
+            await message.edit_text("❌ **ησ ᴛᴧʀɢєᴛꜱ ꜰσᴜηᴅ ᴛσ ʙʀσᴧᴅᴄᴧꜱᴛ ᴛσ.**\n\nᴍᴧᴋє ꜱᴜʀє ᴛʜє ʙσᴛ ɪꜱ ᴧᴅᴅєᴅ ᴛσ ɢʀσᴜᴘꜱ σʀ ᴄʜᴧηηєʟꜱ.")
             return
             
         sent_count = 0
@@ -171,6 +189,7 @@ async def execute_broadcast(client: Client, message: Message, user_id: int):
                 
                 sent_count += 1
             except FloodWait as e:
+                logger.warning(f"FloodWait: {e.value}s for target {target_id}")
                 await asyncio.sleep(e.value)
                 try:
                     if media:
@@ -178,13 +197,16 @@ async def execute_broadcast(client: Client, message: Message, user_id: int):
                     else:
                         await client.send_message(target_id, text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
                     sent_count += 1
-                except:
+                except Exception as retry_error:
                     failed_count += 1
+                    logger.debug(f"Retry failed for {target_id}: {retry_error}")
             except (UserIsBlocked, InputUserDeactivated):
                 failed_count += 1
             except Exception as e:
                 failed_count += 1
-                logger.debug(f"Failed to send to {target_id}: {e}")
+                # Log only unexpected errors
+                if "CHAT_WRITE_FORBIDDEN" not in str(e) and "peer_flood" not in str(e).lower():
+                    logger.error(f"Failed to send to {target_id}: {e}")
             
             # Update status every 10 messages (increased frequency for better UX)
             if (sent_count + failed_count) % 10 == 0:
@@ -198,18 +220,20 @@ async def execute_broadcast(client: Client, message: Message, user_id: int):
                     pass
         
         # Final status
-        await status_msg.edit_text(
-            f"✅ **ʙʀσᴧᴅᴄᴧδᴛ ᴄσϻᴘʟєᴛє!**\n\n"
-            f"📊 **δᴛᴧᴛɪδᴛɪᴄδ:**\n"
+        final_message = (
+            f"✅ **ʙʀσᴧᴅᴄᴧꜱᴛ ᴄσϻᴘʟєᴛє!**\n\n"
+            f"📊 **ꜱᴛᴧᴛɪꜱᴛɪᴄꜱ:**\n"
             f"├ ᴛσᴛᴧʟ: {len(broadcast_targets)}\n"
             f"├ δєηᴛ: {sent_count}\n"
             f"└ ꜰᴧɪʟєᴅ: {failed_count}"
         )
+        await status_msg.edit_text(final_message)
+        logger.info(f"Broadcast completed: {sent_count} sent, {failed_count} failed out of {len(broadcast_targets)} targets")
         
         # Clear state
         if user_id in broadcast_state:
             del broadcast_state[user_id]
             
     except Exception as e:
-        logger.error(f"Error in execute_broadcast: {e}")
-        await message.edit_text("❌ An error occurred during broadcast.")
+        logger.error(f"Error in execute_broadcast: {e}", exc_info=True)
+        await message.edit_text(f"❌ **ᴧη єʀʀσʀ σᴄᴄᴜʀʀєᴅ ᴅᴜʀɪηɢ ʙʀσᴧᴅᴄᴧꜱᴛ.**\n\n`{str(e)[:200]}`")
