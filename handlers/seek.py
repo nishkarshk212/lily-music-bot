@@ -2,6 +2,10 @@
 Seek Handler - Seek within a playing stream
 """
 
+import os
+import random
+import time
+import logging
 from pyrogram import Client
 from pyrogram.types import Message
 from pyrogram.enums import ChatAction
@@ -42,7 +46,6 @@ async def seek_command(client: Client, message: Message):
             return
         
         # Estimate current position
-        import time
         current_position = int(time.time() - queue.start_time)
         new_position = current_position + duration
         
@@ -98,7 +101,6 @@ async def seekback_command(client: Client, message: Message):
             return
         
         # Estimate current position
-        import time
         current_position = int(time.time() - queue.start_time)
         new_position = max(0, current_position - duration)
         

@@ -5,6 +5,7 @@ Handles all voice chat operations
 
 import asyncio
 import os
+import time
 from typing import Optional, Dict
 from pyrogram import Client
 from pyrogram.types import Chat
@@ -230,7 +231,6 @@ class CallManager:
             
             # Mark as playing (song is already added to queue in play.py)
             queue.is_playing = True
-            import time
             queue.start_time = time.time()
             
             logger.info(f"✅ Playing '{song.title}' in {chat_id}")
@@ -361,7 +361,6 @@ class CallManager:
             await call.play(chat_id, stream)
             
             # Update start time for position estimation
-            import time
             queue.start_time = time.time() - seconds
             
             logger.info(f"Seeked to {seconds}s in {chat_id}")
