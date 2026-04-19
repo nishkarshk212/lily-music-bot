@@ -23,6 +23,17 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Lock to prevent duplicate play commands
+_play_locks = {}
+# Track last sent playing message per chat to prevent duplicates
+_last_playing_message = {}
+
+async def get_chat_lock(chat_id: int):
+    """Get or create a lock for a specific chat"""
+    if chat_id not in _play_locks:
+        _play_locks[chat_id] = asyncio.Lock()
+    return _play_locks[chat_id]
+
 # Processing messages - Single clean searching message
 AYU = [
     "ᴘʟᴀʏɪɴɢ ꜱσηɢ......"
@@ -32,6 +43,21 @@ AYU = [
 async def send_playing_message(client: Client, chat_id: int, song, song_info=None):
     """Send playing message in background after playback has started"""
     try:
+        # Prevent duplicate messages for the same song
+        message_key = f"{chat_id}_{song.video_id}"
+        import time
+        current_time = time.time()
+        
+        # Check if we sent a message for this song in the last 3 seconds
+        if message_key in _last_playing_message:
+            last_sent = _last_playing_message[message_key]
+            if current_time - last_sent < 3:
+                logger.info(f"Skipping duplicate playing message for {song.video_id} in {chat_id}")
+                return
+        
+        # Update last sent time
+        _last_playing_message[message_key] = current_time
+        
         # Generate thumbnail asynchronously
         thumb_path = None
         
@@ -117,8 +143,20 @@ async def send_playing_message(client: Client, chat_id: int, song, song_info=Non
 @bot_can_manage_vc
 async def play_command(client: Client, message: Message):
     """Handle /play command"""
+    chat_id = message.chat.id
+    
+    # Use a lock to prevent duplicate play commands in the same chat
+    lock = await get_chat_lock(chat_id)
+    
+    # Try to acquire lock without waiting - if already locked, another play is in progress
+    if not lock.locked():
+        await lock.acquire()
+    else:
+        # Another play command is already being processed
+        await message.reply_text("⏳ **ᴘʟᴀʏ ᴄᴏᴍᴍᴀɴᴅ ᴀʟʀᴇᴀᴅʏ ɪɴ ᴘʀᴏɢʀᴇꜱꜱ...**\n\nᴘʟᴇᴀꜱᴇ ᴡᴀɪᴛ ᴀ ᴍᴏᴍᴇɴᴛ.")
+        return
+    
     try:
-        chat_id = message.chat.id
         chat_username = message.chat.username  # Get chat username if available
         queue = queue_manager.get_queue(chat_id)
         
@@ -372,3 +410,9 @@ async def play_command(client: Client, message: Message):
         # Restart the bot service (Only if it's a fatal error, not just a playback issue)
         # if bot_app:
         #     await bot_app.restart()
+    finally:
+        # Always release the lock
+        try:
+            lock.release()
+        except RuntimeError:
+            pass  # Lock was not acquired
