@@ -187,6 +187,23 @@ async def play_command(client: Client, message: Message):
                 await message.reply_text(ERROR_NO_RESULTS.format(query=query))
             return
         
+        # Check song duration limit
+        from config import MAX_DURATION
+        if song_info.duration > MAX_DURATION:
+            duration_minutes = song_info.duration // 60
+            max_minutes = MAX_DURATION // 60
+            error_msg = (
+                f"❌ **ꜱσηɢ ᴛσσ ʟσηɢ!**\n\n"
+                f"**Duration:** {duration_minutes} minutes\n"
+                f"**Maximum allowed:** {max_minutes} minutes\n\n"
+                f"ᴘʟєᴧꜱє ᴄʜσσꜱє ᴀ ꜱʜσʀᴛєʀ ꜱσηɢ. 🎵"
+            )
+            if status_msg:
+                await status_msg.edit_text(error_msg)
+            else:
+                await message.reply_text(error_msg)
+            return
+        
         # Check queue size
         if queue.size() >= MAX_QUEUE_SIZE:
             if status_msg:

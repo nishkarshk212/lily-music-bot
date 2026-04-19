@@ -39,7 +39,7 @@ VIDEO_API_URL = os.getenv("VIDEO_API_URL", "https://pvtz.nexgenbots.xyz")
 
 # Download Settings
 DOWNLOAD_DIR = "downloads"
-MAX_DURATION = 3600  # Maximum song duration in seconds (1 hour)
+MAX_DURATION = 10800  # Maximum song duration in seconds (3 hours)
 MAX_QUEUE_SIZE = 50  # Maximum songs in queue
 
 # Voice Chat Settings
