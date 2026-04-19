@@ -240,6 +240,16 @@ class CallManager:
             logger.error(f"Failed to play song in {chat_id}: {error_str}")
             logger.exception("Full traceback:")
             
+            # Handle GROUPCALL_INVALID - reset state and re-raise with helpful message
+            if "GROUPCALL_INVALID" in error_str or "GroupcallInvalid" in error_str:
+                # Reset the active chat state since the voice chat is invalid
+                self.active_chats[chat_id] = False
+                logger.warning(f"Voice chat in {chat_id} is invalid. State reset. User should start a new voice chat.")
+                raise ValueError(
+                    f"The voice chat in this group has ended or is invalid. "
+                    f"Please start a new voice chat and try again."
+                ) from e
+            
             # Re-raise with better context for specific errors
             if "CHANNEL_INVALID" in error_str or "ChannelInvalid" in error_str:
                 raise ValueError(f"Bot does not have access to this chat (ID: {chat_id}). Please add the bot as admin.") from e

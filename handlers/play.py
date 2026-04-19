@@ -292,6 +292,12 @@ async def play_command(client: Client, message: Message):
                             "ᴛʜє ʙσᴛ ᴅσєꜱ ησᴛ ʜᴧᴠє ᴧᴄᴄєꜱꜱ ᴛσ ᴛʜɪꜱ ᴄʜᴧηηєʟ/ɢʀσᴜᴘ.\n"
                             "ᴘʟєᴧꜱє ᴧᴅᴅ ᴛʜє ʙσᴛ ᴀηᴅ ᴧꜱꜱɪꜱᴛᴀηᴛ, ᴛʜєη ϻᴀᴋє ᴛʜєϻ **ᴀᴅϻɪη** ᴡɪᴛʜ ᴠσɪᴄє ᴄʜᴀᴛ ᴘєʀϻɪꜱꜱɪσηꜱ."
                         )
+                    elif "GROUPCALL_INVALID" in error_msg or "GroupcallInvalid" in error_msg or "voice chat has ended" in error_msg.lower():
+                        error_response = (
+                            "❌ **ᴠσɪᴄє ᴄʜᴧᴛ єηᴅєᴅ σʀ ɪηᴠᴧʟɪᴅ**\n\n"
+                            "ᴛʜє ᴠσɪᴄє ᴄʜᴧᴛ ɪη ᴛʜɪꜱ ɢʀσᴜᴘ ʜᴧꜱ єηᴅєᴅ σʀ ɪꜱ ɪηᴠᴧʟɪᴅ.\n"
+                            "ᴘʟєᴧꜱє **ꜱᴛᴧʀᴛ ᴀ ηєᴡ ᴠσɪᴄє ᴄʜᴧᴛ** ᴀηᴅ ᴛʀʏ ᴧɢᴧɪη. 🎤"
+                        )
                     elif "FLOOD_WAIT" in error_msg:
                         error_response = (
                             "⏳ **ᴛєʟєɢʀᴧϻ ʀᴧᴛє ʟɪϻɪᴛ**\n\n"
@@ -315,8 +321,8 @@ async def play_command(client: Client, message: Message):
                         # Don't send duplicate message - the edit likely succeeded or user already sees something
                     # If it was MESSAGE_NOT_MODIFIED, that's fine - user already sees the message
                 
-                # Don't raise expected errors (CHANNEL_INVALID, ADMIN_REQUIRED, FLOOD_WAIT) to prevent log spam
-                if "CHANNEL_INVALID" not in error_msg and "CHAT_ADMIN_REQUIRED" not in error_msg and "FLOOD_WAIT" not in error_msg:
+                # Don't raise expected errors (CHANNEL_INVALID, ADMIN_REQUIRED, FLOOD_WAIT, GROUPCALL_INVALID) to prevent log spam
+                if "CHANNEL_INVALID" not in error_msg and "CHAT_ADMIN_REQUIRED" not in error_msg and "FLOOD_WAIT" not in error_msg and "GROUPCALL_INVALID" not in error_msg and "GroupcallInvalid" not in error_msg:
                     raise
         
         logger.info(f"Play command executed by {message.from_user.id} in {chat_id}")
