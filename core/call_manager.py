@@ -214,15 +214,22 @@ class CallManager:
             # No sleep needed for URL streams
             
             # Create media stream - HIGH quality for stability
+            # Add ffmpeg parameters for better stream handling
             stream = MediaStream(
                 song.file_path,
-                audio_parameters=AudioQuality.HIGH
+                audio_parameters=AudioQuality.HIGH,
+                additional_ffmpeg_parameters='-reconnect 1 -reconnect_at_eof 1 -reconnect_streamed 1 -reconnect_delay_max 2'
             )
             
             logger.info(f"⚡ Stream created for {chat_id}, calling play()...")
             
             # ⚡ PyTgCalls v2: play() will automatically join the voice chat if not already in one
-            await call.play(chat_id, stream)
+            # Add timeout to prevent hanging
+            try:
+                await asyncio.wait_for(call.play(chat_id, stream), timeout=30.0)
+            except asyncio.TimeoutError:
+                logger.error(f"Play operation timed out for {chat_id}")
+                raise TimeoutError(f"Failed to play song: operation timed out. The stream might be unreachable.")
             
             logger.info(f"✅ play() successful for {chat_id}")
             
@@ -248,6 +255,15 @@ class CallManager:
                 raise ValueError(
                     f"The voice chat in this group has ended or is invalid. "
                     f"Please start a new voice chat and try again."
+                ) from e
+            
+            # Handle timeout errors
+            if "TimeoutError" in error_str or "timed out" in error_str.lower():
+                logger.warning(f"Stream timeout for {chat_id}. The audio source might be slow or unreachable.")
+                raise ValueError(
+                    f"Failed to play: The audio stream timed out. "
+                    f"This usually means the audio source is slow or unreachable. "
+                    f"Please try again or try a different song."
                 ) from e
             
             # Re-raise with better context for specific errors

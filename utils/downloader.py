@@ -157,8 +157,13 @@ class Downloader:
                             
                             if status == "done" and stream_link:
                                 logger.info(f"✅ [NEXGEN] Got stream link, using for immediate playback")
-                                song_info.file_path = stream_link
-                                return stream_link
+                                # Validate the stream link is not empty
+                                if stream_link and len(stream_link) > 10:
+                                    song_info.file_path = stream_link
+                                    return stream_link
+                                else:
+                                    logger.error(f"❌ [NEXGEN] Invalid stream link: {stream_link}")
+                                    return None
                             elif status == "downloading":
                                 logger.info("⏳ [NEXGEN] Still processing, waiting...")
                                 await asyncio.sleep(5)
@@ -243,10 +248,13 @@ class Downloader:
                     if response.status == 200:
                         data = await response.json()
                         if data and data.get("status") == "done" and data.get("link"):
-                            song_info.file_path = data.get("link")
-                            self._search_cache[query] = song_info
-                            logger.info(f"⚡ Got stream link for: {query}")
-                            return song_info
+                            stream_link = data.get("link")
+                            # Validate stream URL is accessible
+                            if stream_link:
+                                song_info.file_path = stream_link
+                                self._search_cache[query] = song_info
+                                logger.info(f"⚡ Got stream link for: {query}")
+                                return song_info
             except Exception as e:
                 logger.warning(f"NexGen fast-link fetch failed: {e}")
             
