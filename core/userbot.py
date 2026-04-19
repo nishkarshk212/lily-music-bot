@@ -198,8 +198,9 @@ class AssistantManager:
                 ChatMemberStatus.ADMINISTRATOR,
                 ChatMemberStatus.OWNER
             ]
-        except Exception:
-            # If we can't check, assume not member
+        except Exception as e:
+            # Log the specific error for debugging
+            logger.debug(f"Assistant {assistant.me.first_name} membership check failed for chat {chat_id}: {e}")
             return False
     
     async def _invite_assistant(self, assistant: Client, chat_id: int, chat_username: str = None) -> bool:
@@ -275,7 +276,26 @@ class AssistantManager:
                             return False
                     except Exception as e2:
                         logger.error(f"Failed to get chat info: {e2}")
-                        return False
+                        # Fallback: Try to get chat info using assistant itself
+                        try:
+                            chat_info = await assistant.get_chat(chat_id)
+                            if chat_info.username:
+                                logger.info(f"Assistant found chat username: @{chat_info.username}")
+                                await assistant.join_chat(chat_info.username)
+                                logger.info(f"✅ Successfully joined via assistant-discovered username")
+                                return True
+                            else:
+                                logger.error(
+                                    f"❌ Chat {chat_id} is a private chat/channel without username.\n"
+                                    f"   SOLUTION: Manually add the assistant to this chat first, or:\n"
+                                    f"   1. Make the bot an admin with 'Invite Users' permission\n"
+                                    f"   2. Create a public invite link for the chat\n"
+                                    f"   3. Add the assistant manually to the chat"
+                                )
+                                return False
+                        except Exception as e3:
+                            logger.error(f"Assistant also cannot access chat: {e3}")
+                            return False
                 
                 # Make assistant join via the invite link
                 logger.info(f"Assistant joining via invite link: {link_url[:50]}...")

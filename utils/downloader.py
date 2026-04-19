@@ -208,19 +208,27 @@ class Downloader:
             song_info.title = video_info.get('title', 'Unknown')
             # Handle duration (format: '3:45')
             duration_str = video_info.get('duration', '0')
-            if duration_str:
+            if duration_str and isinstance(duration_str, str):
                 parts = duration_str.split(':')
                 if len(parts) == 2:
-                    song_info.duration = int(parts[0]) * 60 + int(parts[1])
+                    try:
+                        song_info.duration = int(parts[0]) * 60 + int(parts[1])
+                    except (ValueError, IndexError):
+                        song_info.duration = 0
                 elif len(parts) == 3:
-                    song_info.duration = int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+                    try:
+                        song_info.duration = int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+                    except (ValueError, IndexError):
+                        song_info.duration = 0
+            elif isinstance(duration_str, (int, float)):
+                song_info.duration = int(duration_str)
             
             # Handle thumbnail (get maxres if available)
             thumbnails = video_info.get('thumbnails', [])
             song_info.thumbnail = thumbnails[-1].get('url') if thumbnails else f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
             
-            song_info.channel = video_info.get('channel', {}).get('name', 'Unknown')
-            song_info.views = video_info.get('viewCount', {}).get('short', '0')
+            song_info.channel = video_info.get('channel', {}).get('name', 'Unknown') if video_info.get('channel') else 'Unknown'
+            song_info.views = video_info.get('viewCount', {}).get('short', '0') if video_info.get('viewCount') else '0'
             song_info.video_id = video_id
             song_info.url = video_url
             
