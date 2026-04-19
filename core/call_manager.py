@@ -283,23 +283,33 @@ class CallManager:
             raise
     
     async def stop(self, chat_id: int):
-        """Stop playback"""
+        """Stop playback - immediately clear queue and leave voice chat"""
         try:
             call = self.get_call(chat_id)
-            # PyTgCalls v2.x doesn't have stop() method
-            # We need to clear the queue and leave voice chat instead
             queue = queue_manager.get_queue(chat_id)
-            queue.is_playing = False
-            queue.clear_queue()
-            queue.current_song = None
-            logger.info(f"Stopped playback in {chat_id}")
             
-            # Leave voice chat after stop
+            # Immediately clear all queue data
+            queue.is_playing = False
+            queue.current_song = None
+            queue.clear_queue()
+            
+            logger.info(f"Stopped playback in {chat_id}, leaving voice chat immediately")
+            
+            # Leave voice chat immediately
             await self.leave_voice_chat(chat_id)
+            
             # Reset active_chats flag
             self.active_chats[chat_id] = False
+            
+            logger.info(f"✅ Successfully stopped and left voice chat in {chat_id}")
         except Exception as e:
             logger.error(f"Failed to stop in {chat_id}: {e}")
+            # Even if there's an error, try to reset the state
+            queue = queue_manager.get_queue(chat_id)
+            queue.is_playing = False
+            queue.current_song = None
+            queue.clear_queue()
+            self.active_chats[chat_id] = False
             raise
     
     async def skip(self, chat_id: int):
@@ -320,19 +330,37 @@ class CallManager:
             raise
     
     async def auto_leave_voice_chat(self, chat_id: int):
-        """Auto leave voice chat when queue is empty"""
+        """Auto leave voice chat when queue is empty after skipping"""
         try:
             queue = queue_manager.get_queue(chat_id)
             
-            # Wait 30 seconds to see if new songs are added (increased from 10s)
-            logger.info(f"Queue empty in {chat_id}, will auto-leave in 30 seconds if no songs added")
-            await asyncio.sleep(30)
+            # Wait 5 seconds to see if new songs are added
+            logger.info(f"Queue empty in {chat_id} after skip, will auto-leave in 5 seconds if no songs added")
+            await asyncio.sleep(5)
             
-            # Check if queue is still empty
+            # Check if queue is still empty and no song is playing
             if queue.is_empty() and not queue.current_song:
+                logger.info(f"Queue still empty in {chat_id}, leaving voice chat")
                 await self.leave_voice_chat(chat_id)
+                
+                # Reset state
                 queue.clear_queue()
+                self.active_chats[chat_id] = False
+                
                 logger.info(f"✅ Auto-left voice chat in {chat_id} (no songs playing)")
+                
+                # Send notification to the chat
+                try:
+                    from core.bot import bot_app
+                    if bot_app and bot_app.app:
+                        await bot_app.app.send_message(
+                            chat_id,
+                            "🎵 **Queue is empty!**\n\n"
+                            "The assistant has left the voice chat.\n"
+                            "Use /play to start playing again. 🎤"
+                        )
+                except Exception as e:
+                    logger.warning(f"Failed to send auto-leave message: {e}")
         except Exception as e:
             logger.error(f"Error in auto_leave for {chat_id}: {e}")
     
@@ -445,25 +473,31 @@ class CallManager:
                 queue.is_playing = False
                 queue.current_song = None
                 
-                # Wait 5 seconds before leaving to prevent rapid join/leave
+                # Wait 5 seconds before leaving to give users time to add more songs
                 await asyncio.sleep(5)
                 
-                # Double check queue is still empty
+                # Double check queue is still empty before leaving
                 if queue.is_empty() and not queue.current_song:
+                    logger.info(f"Queue still empty after 5s, leaving voice chat in {chat_id}")
                     await self.leave_voice_chat(chat_id)
-                    logger.info(f"Auto-left voice chat in {chat_id}")
                     
-                    # Log message about auto-leaving
-                    from config import LOG_GROUP_ID
-                    from core.bot import bot_app
-                    if LOG_GROUP_ID:
-                        try:
+                    # Reset state
+                    self.active_chats[chat_id] = False
+                    
+                    logger.info(f"✅ Auto-left voice chat in {chat_id} (queue completed)")
+                    
+                    # Send notification to the chat
+                    try:
+                        from core.bot import bot_app
+                        if bot_app and bot_app.app:
                             await bot_app.app.send_message(
-                                LOG_GROUP_ID,
-                                f"👋 **Assistant auto-left voice chat in `{chat_id}`** (Queue ended)"
+                                chat_id,
+                                "🎵 **Queue completed!**\n\n"
+                                "The assistant has left the voice chat.\n"
+                                "Use /play to start playing again. 🎤"
                             )
-                        except:
-                            pass
+                    except Exception as e:
+                        logger.warning(f"Failed to send queue completion message: {e}")
                     
         except Exception as e:
             logger.error(f"Error handling stream ended in {chat_id}: {e}")
