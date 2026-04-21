@@ -163,7 +163,6 @@ class BotApp:
         from handlers.admin import start_command, help_command
         from handlers.callback import help_callback, back_to_start_callback, admin_callback, back_to_help_callback
         from handlers.auth import auth_command, unauth_command, authusers_command
-        from handlers.broadcast import broadcast_command, broadcast_callback_handler, broadcast_message_handler
         from handlers.blacklist import blacklistchat_command, whitelistchat_command, blacklistedchat_command
         from handlers.channel import cplay_command, cvplay_command, channelplay_command
         from handlers.gban import gban_command, ungban_command, gbannedusers_command
@@ -211,7 +210,9 @@ class BotApp:
         self.app.add_handler(MessageHandler(authusers_command, command("authusers")))
         
         # Broadcast command
+        from handlers.broadcast import broadcast_command, broadcast_callback_handler, broadcast_message_handler, db_status_command
         self.app.add_handler(MessageHandler(broadcast_command, command("broadcast")))
+        self.app.add_handler(MessageHandler(db_status_command, command("dbstatus")))
         self.app.add_handler(MessageHandler(broadcast_message_handler, filters.private & ~command(["broadcast"])))
         
         # Blacklist commands

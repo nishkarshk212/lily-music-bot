@@ -18,6 +18,30 @@ logger = logging.getLogger(__name__)
 broadcast_state = {}
 
 @owner_only
+async def db_status_command(client: Client, message: Message):
+    """Check database status for broadcast"""
+    try:
+        all_chats = await db_manager.get_all_chats()
+        all_users = []
+        if db_manager.user_collection:
+            all_users = await db_manager.user_collection.find({}).to_list(length=None)
+        
+        status_msg = (
+            f"📊 **ᴅᴧᴛᴧᴧꜱє ꜱᴛᴧᴛᴜꜱ**\n\n"
+            f"👥 **ꜱєʀ:** {len(all_users)}\n"
+            f"🏘 **ᴄʜᴧᴛꜱ/ɢʀσᴜᴘꜱ:** {len(all_chats)}\n\n"
+            f"💡 **ᴛσᴛᴧʟ ʙʀσᴧᴅᴄᴧꜱᴛ ᴛᴧʀєᴛꜱ:** {len(all_users) + len(all_chats)}\n\n"
+            f"ℹ️ **ησᴛє:**\n"
+            f"• Users are added when they use /start in PM\n"
+            f"• Chats are added when bot is added to groups\n"
+            f"• Both are saved when users use /play in groups"
+        )
+        
+        await message.reply_text(status_msg)
+    except Exception as e:
+        await message.reply_text(f"❌ Error: {str(e)}")
+
+@owner_only
 async def broadcast_command(client: Client, message: Message):
     """Initial broadcast command - shows menu"""
     user_id = message.from_user.id
