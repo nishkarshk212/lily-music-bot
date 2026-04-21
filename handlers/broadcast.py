@@ -178,8 +178,23 @@ async def execute_broadcast(client: Client, message: Message, user_id: int):
         
         logger.info(f"Total broadcast targets: {len(broadcast_targets)}")
         
+        # Debug: Log first few targets for verification
+        if broadcast_targets:
+            logger.info(f"First 5 targets: {broadcast_targets[:5]}")
+        
         if not broadcast_targets:
-            await message.edit_text("❌ **ησ ᴛᴧʀɢєᴛꜱ ꜰσᴜηᴅ ᴛσ ʙʀσᴧᴅᴄᴧꜱᴛ ᴛσ.**\n\nᴍᴧᴋє ꜱᴜʀє ᴛʜє ʙσᴛ ɪꜱ ᴧᴅᴅєᴅ ᴛσ ɢʀσᴜᴘꜱ σʀ ᴄʜᴧηɴєʟꜱ.")
+            # Show debug info
+            debug_msg = (
+                f"❌ **ησ ᴛᴧʀɢєᴛꜱ ꜰσᴜηᴅ ᴛσ ʙʀσᴧᴅᴄᴧꜱᴛ ᴛσ.**\n\n"
+                f"📊 **ᴧᴛᴧᴧꜱє ꜱᴛᴧᴛᴜꜱ:**\n"
+                f"├ ᴄʜᴧᴛ: {len(all_chats)}\n"
+                f"└ ᴜꜱєʀꜱ: {len(all_users)}\n\n"
+                f"💡 **ᴛσ ꜰɪx ᴛʜɪꜱ:**\n"
+                f"• ᴜꜱєʀꜱ ᴍᴜꜱᴛ ꜱᴛᴧʀᴛ ᴛʜє ʙσᴛ ɪη ᴘʀɪᴠᴧᴛє\n"
+                f"• ʙσᴛ ᴍᴜꜱᴛ ʙє ᴧᴅᴅєᴅ ᴛσ ɢʀσᴜᴘꜱ\n"
+                f"• ᴜꜱєʀꜱ ᴍᴜꜱᴛ ᴜꜱє /play σʀ /start ɪη ɢʀσᴜᴘ"
+            )
+            await message.edit_text(debug_msg)
             return
             
         sent_count = 0

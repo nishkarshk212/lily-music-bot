@@ -8,6 +8,9 @@ from pyrogram.types import Message
 from pyrogram.enums import ChatType
 from config import LOG_GROUP_ID
 from utils.group_start import GROUP_START_IMAGES
+import logging
+
+logger = logging.getLogger(__name__)
 
 async def new_group_handler(client: Client, message: Message):
     """Handle when bot is added to a new group"""
@@ -23,6 +26,17 @@ async def new_group_handler(client: Client, message: Message):
             chat_name = chat.title
             chat_id = chat.id
             chat_username = f"@{chat.username}" if chat.username else "Private"
+            
+            # Save chat to database for broadcast
+            from database.mongodb import db_manager
+            try:
+                await db_manager.save_chat_settings(
+                    chat_id=chat_id,
+                    settings={"chat_title": chat_name or "", "chat_type": chat.type}
+                )
+                logger.info(f"✅ Saved new group to database: {chat_id} - {chat_name}")
+            except Exception as e:
+                logger.error(f"Failed to save chat to database: {e}")
             
             # Try to get chat link
             try:

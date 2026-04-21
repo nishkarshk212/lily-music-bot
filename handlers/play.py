@@ -145,6 +145,26 @@ async def play_command(client: Client, message: Message):
     """Handle /play command"""
     chat_id = message.chat.id
     
+    # Save user to database for broadcast
+    from database.mongodb import db_manager
+    try:
+        await db_manager.add_user(
+            user_id=message.from_user.id,
+            username=message.from_user.username or ""
+        )
+    except:
+        pass  # Don't fail if DB save fails
+    
+    # Save chat to database for broadcast
+    if message.chat.type in ['group', 'supergroup', 'channel']:
+        try:
+            await db_manager.save_chat_settings(
+                chat_id=chat_id,
+                settings={"chat_title": message.chat.title or "", "chat_type": message.chat.type}
+            )
+        except:
+            pass  # Don't fail if DB save fails
+    
     # Use a lock to prevent duplicate play commands in the same chat
     lock = await get_chat_lock(chat_id)
     
