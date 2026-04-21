@@ -22,13 +22,14 @@ async def broadcast_command(client: Client, message: Message):
     """Initial broadcast command - shows menu"""
     user_id = message.from_user.id
     
-    # Reset state for this user
-    broadcast_state[user_id] = {
-        "text": None,
-        "media": None,
-        "buttons": [],
-        "state": None
-    }
+    # Initialize state if not exists, but don't reset if already exists
+    if user_id not in broadcast_state:
+        broadcast_state[user_id] = {
+            "text": None,
+            "media": None,
+            "buttons": [],
+            "state": None
+        }
     
     keyboard = InlineKeyboardMarkup([
         [
@@ -43,9 +44,19 @@ async def broadcast_command(client: Client, message: Message):
         ]
     ])
     
+    # Show current configuration status
+    status_text = "📢 **ʙʀσᴧᴅᴄᴧꜱᴛ ϻєηᴜ**\n\n"
+    if broadcast_state[user_id]["text"]:
+        status_text += "✅ Text: Set\n"
+    if broadcast_state[user_id]["media"]:
+        status_text += "✅ Media: Set\n"
+    if broadcast_state[user_id]["buttons"]:
+        status_text += f"✅ Buttons: {len(broadcast_state[user_id]['buttons'])} added\n"
+    
+    status_text += "\nᴄσηꜰɪɢᴜʀє ʏσᴜʀ ʙʀσᴧᴅᴄᴧꜱᴛ ϻєꜱꜱᴧɢє ᴜꜱɪηɢ ᴛʜє ʙᴜᴛᴛσηꜱ ʙєʟσᴡ:"
+    
     await message.reply_text(
-        "📢 **ʙʀσᴧᴅᴄᴧꜱᴛ ϻєηᴜ**\n\n"
-        "ᴄσηꜰɪɢᴜʀє ʏσᴜʀ ʙʀσᴧᴅᴄᴧꜱᴛ ϻєꜱꜱᴧɢє ᴜꜱɪηɢ ᴛʜє ʙᴜᴛᴛσηꜱ ʙєʟσᴡ:",
+        status_text,
         reply_markup=keyboard
     )
 
@@ -93,17 +104,17 @@ async def broadcast_message_handler(client: Client, message: Message):
         # Fix: Use message.text directly, not .html attribute
         broadcast_state[user_id]["text"] = message.text or message.caption or None
         broadcast_state[user_id]["state"] = None
-        await message.reply_text("✅ **ᴛєxᴛ δєᴛ δᴜᴄᴄєꜱꜱꜰᴜʟʟʏ!**")
-        await broadcast_command(client, message)
+        await message.reply_text("✅ **ᴛєxᴛ δєᴛ δᴜᴄᴄєꜱꜱᴜʟʟ!**")
+        # Don't call broadcast_command - it will reset the state
         
     elif state == "waiting_for_media":
         if message.photo or message.video or message.document:
             broadcast_state[user_id]["media"] = message
             broadcast_state[user_id]["state"] = None
-            await message.reply_text("✅ **ϻєᴅɪᴧ δєᴛ δᴜᴄᴄєꜱ份ᴜʟʟʏ!**")
-            await broadcast_command(client, message)
+            await message.reply_text("✅ **ϻєᴅɪᴧ δєᴛ δᴜᴄᴄєꜱ份ᴜʟʟ!**")
+            # Don't call broadcast_command - it will reset the state
         else:
-            await message.reply_text("❌ **ɪηᴠᴧʟɪᴅ ϻєᴅɪᴧ! ᴘʟєᴧδє δєηᴅ ᴧ ᴘʜσᴛσ, ᴠɪᴅєσ, σʀ ᴅσᴄᴜϻєηᴛ.**")
+            await message.reply_text("❌ **ɪηᴠʟɪᴅ єᴅɪᴧ! ᴘʟєᴧδє δєηᴅ ᴧ ᴘʜσᴛσ, ᴠɪᴅєσ, σʀ ᴅσᴄϻєηᴛ.**")
             
     elif state == "waiting_for_button":
         if "|" in message.text:
@@ -111,9 +122,9 @@ async def broadcast_message_handler(client: Client, message: Message):
             broadcast_state[user_id]["buttons"].append({"text": text.strip(), "url": url.strip()})
             broadcast_state[user_id]["state"] = None
             await message.reply_text(f"✅ **ʙᴜᴛᴛση '{text.strip()}' ᴧᴅᴅєᴅ!**")
-            await broadcast_command(client, message)
+            # Don't call broadcast_command - it will reset the state
         else:
-            await message.reply_text("❌ **ɪηᴠᴧʟɪᴅ ꜰσʀϻᴧᴛ! ᴜδє: ᴛєxᴛ | ᴜʀʟ**")
+            await message.reply_text("❌ **ɪηᴠᴧʟɪᴅ ꜰσʀϻᴧᴛ! ᴜδє: ᴛєxᴛ | ᴜʀ**")
 
 async def execute_broadcast(client: Client, message: Message, user_id: int):
     """Execute the actual broadcast"""
@@ -168,7 +179,7 @@ async def execute_broadcast(client: Client, message: Message, user_id: int):
         logger.info(f"Total broadcast targets: {len(broadcast_targets)}")
         
         if not broadcast_targets:
-            await message.edit_text("❌ **ησ ᴛᴧʀɢєᴛꜱ ꜰσᴜηᴅ ᴛσ ʙʀσᴧᴅᴄᴧꜱᴛ ᴛσ.**\n\nᴍᴧᴋє ꜱᴜʀє ᴛʜє ʙσᴛ ɪꜱ ᴧᴅᴅєᴅ ᴛσ ɢʀσᴜᴘꜱ σʀ ᴄʜᴧηηєʟꜱ.")
+            await message.edit_text("❌ **ησ ᴛᴧʀɢєᴛꜱ ꜰσᴜηᴅ ᴛσ ʙʀσᴧᴅᴄᴧꜱᴛ ᴛσ.**\n\nᴍᴧᴋє ꜱᴜʀє ᴛʜє ʙσᴛ ɪꜱ ᴧᴅᴅєᴅ ᴛσ ɢʀσᴜᴘꜱ σʀ ᴄʜᴧηɴєʟꜱ.")
             return
             
         sent_count = 0
