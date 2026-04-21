@@ -489,31 +489,33 @@ class CallManager:
                 queue.is_playing = False
                 queue.current_song = None
                 
-                # Wait 5 seconds before leaving to give users time to add more songs
-                await asyncio.sleep(5)
+                # Wait 3 seconds before leaving to give users time to add more songs
+                await asyncio.sleep(3)
                 
                 # Double check queue is still empty before leaving
                 if queue.is_empty() and not queue.current_song:
-                    logger.info(f"Queue still empty after 5s, leaving voice chat in {chat_id}")
-                    await self.leave_voice_chat(chat_id)
+                    logger.info(f"Queue still empty after 3s, leaving voice chat in {chat_id}")
                     
-                    # Reset state
-                    self.active_chats[chat_id] = False
-                    
-                    logger.info(f"✅ Auto-left voice chat in {chat_id} (queue completed)")
-                    
-                    # Send notification to the chat
+                    # Send notification BEFORE leaving
                     try:
                         from core.bot import bot_app
                         if bot_app and bot_app.app:
                             await bot_app.app.send_message(
                                 chat_id,
                                 "🎵 **Queue completed!**\n\n"
-                                "The assistant has left the voice chat.\n"
+                                "All songs have been played. The assistant will now leave the voice chat.\n"
                                 "Use /play to start playing again. 🎤"
                             )
                     except Exception as e:
                         logger.warning(f"Failed to send queue completion message: {e}")
+                    
+                    # Now leave the voice chat
+                    await self.leave_voice_chat(chat_id)
+                    
+                    # Reset state
+                    self.active_chats[chat_id] = False
+                    
+                    logger.info(f"✅ Auto-left voice chat in {chat_id} (queue completed)")
                     
         except Exception as e:
             logger.error(f"Error handling stream ended in {chat_id}: {e}")

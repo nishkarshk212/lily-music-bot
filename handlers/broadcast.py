@@ -133,29 +133,32 @@ async def execute_broadcast(client: Client, message: Message, user_id: int):
                 keyboard_list.append([InlineKeyboardButton(btn["text"], url=btn["url"])])
             keyboard = InlineKeyboardMarkup(keyboard_list)
             
-        # Get all chats and users
+        # Get all chats from settings collection (groups/channels where bot was used)
         all_chats = await db_manager.get_all_chats()
         logger.info(f"Found {len(all_chats)} chats in database")
         
-        # Fix: Properly query users collection
+        # Get all users from users collection
         all_users = []
-        if hasattr(db_manager, 'user_collection') and db_manager.user_collection:
+        if db_manager.user_collection:
             try:
                 all_users = await db_manager.user_collection.find({}).to_list(length=None)
                 logger.info(f"Found {len(all_users)} users in database")
             except Exception as e:
                 logger.error(f"Failed to query users: {e}")
-        else:
-            logger.warning("User collection not available")
         
+        # Build broadcast targets list
         broadcast_targets = []
+        
+        # Add all chat IDs (groups/channels)
         for chat in all_chats:
             chat_id = chat.get('chat_id')
-            if chat_id:
+            if chat_id and isinstance(chat_id, int):
                 broadcast_targets.append(chat_id)
+        
+        # Add all user IDs
         for user in all_users:
             user_id_target = user.get('user_id')
-            if user_id_target:
+            if user_id_target and isinstance(user_id_target, int):
                 broadcast_targets.append(user_id_target)
             
         # Remove duplicates and the broadcaster's own ID
@@ -177,6 +180,7 @@ async def execute_broadcast(client: Client, message: Message, user_id: int):
             f"δєηᴛ: 0 | ꜰᴧɪʟєᴅ: 0"
         )
         
+        # Send messages with small delays to avoid flooding
         for target_id in broadcast_targets:
             try:
                 if media:
@@ -188,6 +192,8 @@ async def execute_broadcast(client: Client, message: Message, user_id: int):
                     await client.send_message(target_id, text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
                 
                 sent_count += 1
+                # Small delay to avoid rate limiting
+                await asyncio.sleep(0.5)
             except FloodWait as e:
                 logger.warning(f"FloodWait: {e.value}s for target {target_id}")
                 await asyncio.sleep(e.value)
@@ -208,8 +214,8 @@ async def execute_broadcast(client: Client, message: Message, user_id: int):
                 if "CHAT_WRITE_FORBIDDEN" not in str(e) and "peer_flood" not in str(e).lower():
                     logger.error(f"Failed to send to {target_id}: {e}")
             
-            # Update status every 10 messages (increased frequency for better UX)
-            if (sent_count + failed_count) % 10 == 0:
+            # Update status every 5 messages for better UX
+            if (sent_count + failed_count) % 5 == 0:
                 try:
                     await status_msg.edit_text(
                         f"📢 **ʙʀσᴧᴅᴄᴧδᴛɪηɢ...**\n\n"
